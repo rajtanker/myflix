@@ -1,4 +1,3 @@
-jsx
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import Player from '@/components/Player';
