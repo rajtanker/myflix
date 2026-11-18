@@ -19,7 +19,7 @@ export const metadata = {
   icons: { icon: '/favicon.svg' },
   robots: { index: true, follow: true },
   // ২. (ঐচ্ছিক) Search Console HTML tag দিলে নিচের কোটেশনের ভেতর বসাতে পারো:
-  // verification: { google: 'তোমার-verification-code' },
+   verification: { google: 'f2RsoNx7PCap3X3nRwtLkJIlr7S3sdbA5Fj34ahCp0M' },
 };
 
 export default function RootLayout({ children }) {
