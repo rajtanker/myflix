@@ -1,4 +1,3 @@
-jsx
 import { SITE } from '@/lib/config';
 
 export const metadata = { title: 'Privacy Policy' };
