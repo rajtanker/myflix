@@ -1,4 +1,3 @@
-jsx
 'use client';
 import { useEffect, useState } from 'react';
 import { TOAST_EVENT } from '@/lib/storage';
