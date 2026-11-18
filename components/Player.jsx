@@ -19,29 +19,26 @@ import {
 } from '@/lib/storage';
 
 const EP_PAGE_SIZE = 30;
-const LOAD_TIMEOUT = 8000; // ms — এর মধ্যে লোড না হলে ডেড ধরে পরেরটায়
-const MAX_AUTO = 5; // সর্বোচ্চ কতবার নিজে নিজে বদলাবে
+const LOAD_TIMEOUT = 9000;
+const PROBE_TIMEOUT = 4500;
+const MAX_AUTO = 6;
 const DEAD_KEY = 'myflix.deadservers';
 
-/* tier 1 = যাচাই করা সেরা, 2 = ভালো, 3 = ফলব্যাক, 4 = পুরনো/অনিশ্চিত */
+const NX = 'https://nxsha.space/embed';
+
+/* tier 1 = টেস্ট করা লাইভ, 2 = ভালো ফলব্যাক */
 const SERVERS = [
-  { name: 'VidSrc', hint: 'HD', tier: 1, m: 'https://vidsrc.sh/embed/movie/{tmdb}', t: 'https://vidsrc.sh/embed/tv/{tmdb}/{s}/{e}' },
-  { name: 'VidSrc 2', hint: 'Mirror', tier: 1, m: 'https://vidsrc2.ru/embed/movie/{tmdb}', t: 'https://vidsrc2.ru/embed/tv/{tmdb}/{s}/{e}' },
-  { name: 'VidSrc IR', hint: 'Mirror', tier: 1, m: 'https://vidsrc.ir/embed/movie/{tmdb}', t: 'https://vidsrc.ir/embed/tv/{tmdb}/{s}/{e}' },
-  { name: 'SuperEmbed', hint: 'Multi', tier: 1, m: 'https://multiembed.mov/?video_id={tmdb}&tmdb=1', t: 'https://multiembed.mov/?video_id={tmdb}&tmdb=1&s={s}&e={e}' },
-  { name: 'SuperEmbed VIP', hint: 'Fast', tier: 1, m: 'https://multiembed.mov/directstream.php?video_id={tmdb}&tmdb=1', t: 'https://multiembed.mov/directstream.php?video_id={tmdb}&tmdb=1&s={s}&e={e}' },
+  { name: 'Nexus', hint: 'HD', tier: 1, m: `${NX}/movie/{tmdb}?lang=en&autoplay=true&sub=en`, t: `${NX}/tv/{tmdb}/{s}/{e}?lang=en&autoplay=true&sub=en` },
+  { name: 'Nitro', hint: 'Multi', tier: 1, m: `${NX}/movie/{tmdb}?server=nitro&lang=en&autoplay=true&sub=en`, t: `${NX}/tv/{tmdb}/{s}/{e}?server=nitro&lang=en&autoplay=true&sub=en` },
+  { name: 'Mahalala', hint: 'Multi', tier: 1, m: `${NX}/movie/{tmdb}?server=mahalala&lang=en&autoplay=true&sub=en`, t: `${NX}/tv/{tmdb}/{s}/{e}?server=mahalala&lang=en&autoplay=true&sub=en` },
+  { name: 'CastVid', hint: 'Multi', tier: 1, m: `${NX}/movie/{tmdb}?server=castvid&lang=en&autoplay=true&sub=en`, t: `${NX}/tv/{tmdb}/{s}/{e}?server=castvid&lang=en&autoplay=true&sub=en` },
+  { name: 'VidBo', hint: 'Multi', tier: 1, m: `${NX}/movie/{tmdb}?server=vidbo&lang=en&autoplay=true&sub=en`, t: `${NX}/tv/{tmdb}/{s}/{e}?server=vidbo&lang=en&autoplay=true&sub=en` },
+  { name: 'StremFx', hint: 'Alt', tier: 1, m: `${NX}/movie/{tmdb}?server=stremfx&lang=en&autoplay=true&sub=en`, t: `${NX}/tv/{tmdb}/{s}/{e}?server=stremfx&lang=en&autoplay=true&sub=en` },
+  { name: 'Astra', hint: 'Multi', tier: 2, m: 'https://player-4aq.pages.dev/embed/movie/{tmdb}?autoPlay=true', t: 'https://player-4aq.pages.dev/embed/tv/{tmdb}/{s}/{e}?autoPlay=true' },
+  { name: 'VidSrc', hint: 'HD', tier: 2, m: 'https://vidsrc.sh/embed/movie/{tmdb}', t: 'https://vidsrc.sh/embed/tv/{tmdb}/{s}/{e}' },
+  { name: 'SuperEmbed', hint: 'Multi', tier: 2, m: 'https://multiembed.mov/?video_id={tmdb}&tmdb=1', t: 'https://multiembed.mov/?video_id={tmdb}&tmdb=1&s={s}&e={e}' },
   { name: 'VidLink', hint: '1080p', tier: 2, m: 'https://vidlink.pro/movie/{tmdb}', t: 'https://vidlink.pro/tv/{tmdb}/{s}/{e}' },
-  { name: '2Embed', hint: 'Classic', tier: 2, m: 'https://2embed.cc/embed/{tmdb}', t: 'https://2embed.cc/embedtv/{tmdb}&s={s}&e={e}' },
   { name: 'Videasy', hint: 'Fast', tier: 2, m: 'https://player.videasy.net/movie/{tmdb}', t: 'https://player.videasy.net/tv/{tmdb}/{s}/{e}' },
-  { name: 'EmbedSU', hint: 'HD', tier: 3, m: 'https://embed.su/embed/movie/{tmdb}', t: 'https://embed.su/embed/tv/{tmdb}/{s}/{e}' },
-  { name: 'MoviesAPI', hint: 'Alt', tier: 3, m: 'https://moviesapi.club/movie/{tmdb}', t: 'https://moviesapi.club/tv/{tmdb}-{s}-{e}' },
-  { name: 'VidFast', hint: 'Alt', tier: 3, m: 'https://vidfast.pro/movie/{tmdb}', t: 'https://vidfast.pro/tv/{tmdb}/{s}/{e}' },
-  { name: 'Smashy', hint: 'Alt', tier: 3, m: 'https://player.smashy.stream/movie/{tmdb}', t: 'https://player.smashy.stream/tv/{tmdb}?s={s}&e={e}' },
-  { name: '111Movies', hint: 'Alt', tier: 3, m: 'https://111movies.com/movie/{tmdb}', t: 'https://111movies.com/tv/{tmdb}/{s}/{e}' },
-  { name: 'VidSrc PRO', hint: 'Alt', tier: 3, m: 'https://vidsrc.pro/embed/movie/{tmdb}', t: 'https://vidsrc.pro/embed/tv/{tmdb}/{s}/{e}' },
-  { name: 'VidSrc ME', hint: 'Old', tier: 4, m: 'https://vidsrc.me/embed/movie?tmdb={tmdb}', t: 'https://vidsrc.me/embed/tv?tmdb={tmdb}&season={s}&episode={e}' },
-  { name: 'VidSrc Embed', hint: 'Old', tier: 4, m: 'https://vidsrc-embed.ru/embed/movie/{tmdb}', t: 'https://vidsrc-embed.ru/embed/tv/{tmdb}/{s}/{e}' },
-  { name: 'VixSrc', hint: 'Alt', tier: 4, m: 'https://vixsrc.to/movie/{tmdb}', t: 'https://vixsrc.to/tv/{tmdb}/{s}/{e}' },
 ];
 
 function readDead() {
@@ -62,16 +59,47 @@ function writeDead(list) {
   }
 }
 
+/* নেটওয়ার্ক-লেভেল প্রি-ফ্লাইট: DNS/কানেকশন ফেইল ধরবে */
+function preflight(url) {
+  return new Promise((resolve) => {
+    let done = false;
+    const ctrl = new AbortController();
+    const t = setTimeout(() => {
+      if (done) return;
+      done = true;
+      ctrl.abort();
+      resolve(false);
+    }, PROBE_TIMEOUT);
+
+    fetch(url, { mode: 'no-cors', cache: 'no-store', signal: ctrl.signal })
+      .then(() => {
+        if (done) return;
+        done = true;
+        clearTimeout(t);
+        resolve(true);
+      })
+      .catch(() => {
+        if (done) return;
+        done = true;
+        clearTimeout(t);
+        resolve(false);
+      });
+  });
+}
+
+const fill = (tpl, tmdb, s, e) =>
+  (tpl || '')
+    .replace('{tmdb}', String(tmdb))
+    .replace('{s}', String(s))
+    .replace('{e}', String(e));
+
 export default function Player({ item, servers = [] }) {
   const seasons = useMemo(() => {
     if (item.type !== 'tv') return [];
-    if (Array.isArray(item.seasonList) && item.seasonList.length > 0) {
-      return item.seasonList;
-    }
+    if (Array.isArray(item.seasonList) && item.seasonList.length > 0) return item.seasonList;
     return [{ s: 1, eps: 12 }];
   }, [item]);
 
-  /* প্রপ থেকে আসা সার্ভার tier 0 হিসেবে যোগ হয়, ডুপ্লিকেট বাদ */
   const list = useMemo(() => {
     const extra = (servers || [])
       .filter((s) => s && (s.tpl || s.m))
@@ -91,7 +119,6 @@ export default function Player({ item, servers = [] }) {
     })).filter((s) => Boolean(s.tpl));
 
     const merged = [...extra.map((e) => ({ ...e, tpl: item.type === 'tv' ? e.t : e.m })), ...base];
-
     const seen = new Set();
     const unique = merged.filter((s) => {
       if (!s.tpl || seen.has(s.name)) return false;
@@ -108,8 +135,9 @@ export default function Player({ item, servers = [] }) {
     });
   }, [servers, item.type]);
 
-  const [activeName, setActiveName] = useState(list[0]?.name || '');
-  const [phase, setPhase] = useState('loading'); // loading | ok | failed
+  const [activeName, setActiveName] = useState('');
+  const [phase, setPhase] = useState('checking'); // checking | loading | ok | failed
+  const [probe, setProbe] = useState({});
   const [autoTries, setAutoTries] = useState(0);
   const [season, setSeason] = useState(seasons[0]?.s || 1);
   const [ep, setEp] = useState(1);
@@ -120,8 +148,9 @@ export default function Player({ item, servers = [] }) {
 
   const timerRef = useRef(null);
   const autoRef = useRef(0);
+  const runRef = useRef(0);
 
-  const active = list.find((s) => s.name === activeName) || list[0];
+  const active = list.find((s) => s.name === activeName) || null;
 
   const markDead = useCallback((name) => {
     if (!name) return;
@@ -135,7 +164,6 @@ export default function Player({ item, servers = [] }) {
     if (d.includes(name)) writeDead(d.filter((x) => x !== name));
   }, []);
 
-  /* URL hash থেকে এপিসোড রিস্টোর */
   useEffect(() => {
     if (item.type === 'tv' && typeof window !== 'undefined') {
       const m = window.location.hash.match(/^#s(\d+)e(\d+)$/i);
@@ -160,11 +188,8 @@ export default function Player({ item, servers = [] }) {
 
   useEffect(() => {
     if (!item?.id) return;
-    if (item.type === 'tv') {
-      saveToHistory(item, season, ep);
-    } else {
-      saveToHistory(item);
-    }
+    if (item.type === 'tv') saveToHistory(item, season, ep);
+    else saveToHistory(item);
   }, [item, season, ep]);
 
   const activeSeasonObj = seasons.find((x) => x.s === season) || seasons[0] || { s: 1, eps: 1 };
@@ -174,25 +199,69 @@ export default function Player({ item, servers = [] }) {
   const pageEnd = Math.min(totalEps, (epPage + 1) * EP_PAGE_SIZE);
   const epNumbers = Array.from({ length: pageEnd - pageStart + 1 }, (_, i) => pageStart + i);
 
+  /* সব সার্ভার একসাথে প্যারালাল চেক, তারপর যেটা কাজ করছে সেটা বাছা */
+  useEffect(() => {
+    runRef.current += 1;
+    const run = runRef.current;
+    autoRef.current = 0;
+    setAutoTries(0);
+    setActiveName('');
+    setPhase('checking');
+    setProbe({});
+
+    let cancelled = false;
+
+    (async () => {
+      const results = await Promise.all(
+        list.map(async (s) => ({ name: s.name, ok: await preflight(fill(s.tpl, item.tmdb, season, ep)) }))
+      );
+      if (cancelled || run !== runRef.current) return;
+
+      const map = {};
+      results.forEach((r) => {
+        map[r.name] = r.ok ? 'ok' : 'fail';
+        if (!r.ok) markDead(r.name);
+        else markAlive(r.name);
+      });
+      setProbe(map);
+
+      const good = results.filter((r) => r.ok).map((r) => r.name);
+      const deadNow = readDead();
+      const firstGood = good.find((n) => !deadNow.includes(n)) || good[0];
+      const target = firstGood || list[0]?.name || '';
+
+      if (!target) {
+        setPhase('failed');
+        return;
+      }
+      setActiveName(target);
+      setPhase('loading');
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [item.tmdb, season, ep, list, markDead, markAlive]);
+
   const currentUrl = useMemo(() => {
-    const tpl = active?.tpl || '';
-    return tpl
-      .replace('{tmdb}', String(item.tmdb))
-      .replace('{s}', String(season))
-      .replace('{e}', String(ep));
+    if (!active) return '';
+    return fill(active.tpl, item.tmdb, season, ep);
   }, [active, item.tmdb, season, ep]);
 
-  /* অটো-ফেইলওভার টাইমার */
+  /* iframe লোড না হলে অটো পরের সার্ভার */
   useEffect(() => {
     clearTimeout(timerRef.current);
-    if (!currentUrl) return;
+    if (!currentUrl || !activeName) return;
 
-    setPhase('loading');
+    setPhase((p) => (p === 'checking' ? p : 'loading'));
+
     timerRef.current = setTimeout(() => {
       markDead(activeName);
+      setProbe((p) => ({ ...p, [activeName]: 'fail' }));
 
       const curIdx = list.findIndex((s) => s.name === activeName);
-      const next = list.slice(curIdx + 1).find((s) => s.name !== activeName);
+      const deadNow = readDead();
+      const next = list.slice(curIdx + 1).find((s) => s.name !== activeName && !deadNow.includes(s.name));
 
       if (next && autoRef.current < MAX_AUTO) {
         autoRef.current += 1;
@@ -210,32 +279,31 @@ export default function Player({ item, servers = [] }) {
     autoRef.current = 0;
     setAutoTries(0);
     setActiveName(name);
+    setPhase('loading');
   };
 
   const nextSource = () => {
     const curIdx = list.findIndex((s) => s.name === activeName);
     const next = list.slice(curIdx + 1).find((s) => s.name !== activeName);
-    if (next) {
-      pickServer(next.name);
-    } else {
-      showToast('শেষ সার্ভার — উপরের তালিকা থেকে বেছে নিন');
-    }
+    if (next) pickServer(next.name);
+    else showToast('শেষ সার্ভার — উপরের তালিকা থেকে বেছে নিন');
   };
 
   const retryAll = () => {
     writeDead([]);
     autoRef.current = 0;
     setAutoTries(0);
-    setPhase('loading');
     const first = list[0]?.name;
-    if (first) setActiveName(first === activeName ? list[1]?.name || first : first);
+    if (first) {
+      setActiveName(first === activeName ? list[1]?.name || first : first);
+      setPhase('loading');
+    }
   };
 
   const selectSeason = (sNum) => {
     setSeason(sNum);
     setEp(1);
     setEpPage(0);
-    autoRef.current = 0;
   };
 
   const selectEpisode = (eNum) => {
@@ -277,14 +345,13 @@ export default function Player({ item, servers = [] }) {
   const handleShare = async () => {
     const url = typeof window !== 'undefined' ? window.location.href : '';
     try {
-      if (navigator.share) {
-        await navigator.share({ title: item.title, url });
-      } else {
+      if (navigator.share) await navigator.share({ title: item.title, url });
+      else {
         await navigator.clipboard.writeText(url);
         showToast('Link copied to clipboard!');
       }
     } catch {
-      /* ignore cancel */
+      /* ignore */
     }
   };
 
@@ -306,16 +373,13 @@ export default function Player({ item, servers = [] }) {
               title={item.title}
               onLoad={() => {
                 markAlive(activeName);
+                setProbe((p) => ({ ...p, [activeName]: 'ok' }));
                 setPhase('ok');
               }}
             />
-          ) : (
-            <div style={{ padding: 32, textAlign: 'center', opacity: 0.7 }}>
-              এই টাইটেলের জন্য কোনো সার্ভার পাওয়া যায়নি।
-            </div>
-          )}
+          ) : null}
 
-          {phase === 'loading' && (
+          {(phase === 'checking' || phase === 'loading') && (
             <div
               style={{
                 position: 'absolute',
@@ -323,13 +387,17 @@ export default function Player({ item, servers = [] }) {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                background: 'rgba(0,0,0,.55)',
+                background: 'rgba(0,0,0,.72)',
                 pointerEvents: 'none',
                 fontSize: 13,
                 letterSpacing: 0.3,
+                textAlign: 'center',
+                padding: 20,
               }}
             >
-              {active?.name} লোড হচ্ছে… ({autoTries}/{MAX_AUTO})
+              {phase === 'checking'
+                ? 'সার্ভার চেক করা হচ্ছে…'
+                : `${active?.name} লোড হচ্ছে… (${autoTries}/${MAX_AUTO})`}
             </div>
           )}
 
@@ -343,13 +411,13 @@ export default function Player({ item, servers = [] }) {
                 gap: 10,
                 alignItems: 'center',
                 justifyContent: 'center',
-                background: 'rgba(0,0,0,.85)',
+                background: 'rgba(0,0,0,.88)',
                 textAlign: 'center',
                 padding: 20,
               }}
             >
-              <strong style={{ fontSize: 15 }}>সব সার্ভার ব্যর্থ হয়েছে</strong>
-              <span style={{ fontSize: 12, opacity: 0.7, maxWidth: 340 }}>
+              <strong style={{ fontSize: 15 }}>কোনো সার্ভার কাজ করছে না</strong>
+              <span style={{ fontSize: 12, opacity: 0.72, maxWidth: 340 }}>
                 মুভিটি রিলিজ না হয়ে থাকলে এখনো কোথাও পাওয়া যাবে না। নাহলে আবার চেষ্টা করুন বা নিচের তালিকা থেকে অন্যটা বেছে নিন।
               </span>
               <div style={{ display: 'flex', gap: 8 }}>
@@ -367,21 +435,25 @@ export default function Player({ item, servers = [] }) {
         <div className="player-toolbar">
           <div className="server-group">
             <span className="server-label">Servers:</span>
-            {list.map((s) => (
-              <button
-                key={s.name}
-                type="button"
-                className={`srv-btn ${s.name === activeName ? 'on' : ''}`}
-                onClick={() => pickServer(s.name)}
-                style={deadList.includes(s.name) ? { opacity: 0.45 } : undefined}
-                title={deadList.includes(s.name) ? 'এই সেশনে ব্যর্থ হয়েছে' : s.hint}
-              >
-                <span>{s.name}</span>
-                <span className="srv-hint">{s.hint}</span>
-              </button>
-            ))}
+            {list.map((s) => {
+              const st = probe[s.name];
+              const dim = st === 'fail' || deadList.includes(s.name);
+              return (
+                <button
+                  key={s.name}
+                  type="button"
+                  className={`srv-btn ${s.name === activeName ? 'on' : ''}`}
+                  onClick={() => pickServer(s.name)}
+                  style={dim && s.name !== activeName ? { opacity: 0.4 } : undefined}
+                  title={st === 'fail' ? 'এই সার্ভার সাড়া দিচ্ছে না' : s.hint}
+                >
+                  <span>{s.name}</span>
+                  <span className="srv-hint">{s.hint}</span>
+                </button>
+              );
+            })}
             <button type="button" className="srv-btn" onClick={nextSource}>
-              <ChevronRightIcon size={15} /> Next source
+              <ChevronRightIcon size={15} /> Next
             </button>
           </div>
 
@@ -427,9 +499,7 @@ export default function Player({ item, servers = [] }) {
         </div>
 
         <p className="player-tip">
-          {item.type === 'tv'
-            ? `Currently watching Season ${season}, Episode ${ep}. `
-            : ''}
+          {item.type === 'tv' ? `Currently watching Season ${season}, Episode ${ep}. ` : ''}
           If the player fails to load or buffers, switch to another server above.
         </p>
 
