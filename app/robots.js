@@ -1,4 +1,3 @@
-js
 import { SITE } from '@/lib/config';
 
 export const dynamic = 'force-static';
