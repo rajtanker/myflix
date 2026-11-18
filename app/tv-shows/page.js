@@ -1,4 +1,3 @@
-jsx
 import Link from 'next/link';
 import Card from '@/components/Card';
 import { byType, newest } from '@/lib/data';
