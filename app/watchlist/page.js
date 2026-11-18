@@ -1,4 +1,3 @@
-jsx
 import WatchlistClient from '@/components/WatchlistClient';
 
 export const metadata = {
