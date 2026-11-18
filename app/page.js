@@ -1,4 +1,3 @@
-jsx
 import Link from 'next/link';
 import HeroCarousel from '@/components/HeroCarousel';
 import CarouselRow from '@/components/CarouselRow';
