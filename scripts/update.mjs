@@ -1,13 +1,41 @@
-js
 import fs from 'fs';
 import path from 'path';
-import { TMDB_GENRE_MAP } from '../lib/constants.js';
 
 const KEY = process.env.TMDB_API_KEY;
 if (!KEY) {
   console.error('Error: TMDB_API_KEY environment variable is missing.');
   process.exit(1);
 }
+
+const TMDB_GENRE_MAP = {
+  28: 'Action',
+  12: 'Adventure',
+  16: 'Animation',
+  35: 'Comedy',
+  80: 'Crime',
+  99: 'Documentary',
+  18: 'Drama',
+  10751: 'Family',
+  14: 'Fantasy',
+  36: 'History',
+  27: 'Horror',
+  10402: 'Music',
+  9648: 'Mystery',
+  10749: 'Romance',
+  878: 'Sci-Fi',
+  10770: 'Drama',
+  53: 'Thriller',
+  10752: 'War',
+  37: 'Western',
+  10759: 'Action',
+  10762: 'Family',
+  10763: 'Documentary',
+  10764: 'Drama',
+  10765: 'Sci-Fi',
+  10766: 'Drama',
+  10767: 'Comedy',
+  10768: 'War',
+};
 
 const DATA_FILE = path.join(process.cwd(), 'data', 'movies.json');
 const INDEX_FILE = path.join(process.cwd(), 'public', 'db.json');
@@ -176,7 +204,6 @@ for (const l of ['ko', 'ja', 'hi', 'es']) {
   });
 }
 
-// Enrich up to 240 un-enriched items in batches of 8
 const toEnrich = Array.from(map.values())
   .filter((x) => !x.enriched)
   .sort((a, b) => (a.trendingRank ?? 999999) - (b.trendingRank ?? 999999) || (b.popularity || 0) - (a.popularity || 0))
@@ -229,7 +256,6 @@ for (let i = 0; i < toEnrich.length; i += 8) {
   await new Promise((res) => setTimeout(res, 120));
 }
 
-// Sort: trending first, then highest popularity
 const finalList = Array.from(map.values())
   .sort((a, b) => {
     const aT = typeof a.trendingRank === 'number' ? a.trendingRank : 999999;
