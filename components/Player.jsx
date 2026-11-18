@@ -26,7 +26,6 @@ const DEAD_KEY = 'myflix.deadservers';
 
 const NX = 'https://nxsha.space/embed';
 
-/* tier 1 = টেস্ট করা লাইভ, 2 = ভালো ফলব্যাক */
 const SERVERS = [
   { name: 'Nexus', hint: 'HD', tier: 1, m: `${NX}/movie/{tmdb}?lang=en&autoplay=true&sub=en`, t: `${NX}/tv/{tmdb}/{s}/{e}?lang=en&autoplay=true&sub=en` },
   { name: 'Nitro', hint: 'Multi', tier: 1, m: `${NX}/movie/{tmdb}?server=nitro&lang=en&autoplay=true&sub=en`, t: `${NX}/tv/{tmdb}/{s}/{e}?server=nitro&lang=en&autoplay=true&sub=en` },
@@ -59,7 +58,6 @@ function writeDead(list) {
   }
 }
 
-/* নেটওয়ার্ক-লেভেল প্রি-ফ্লাইট: DNS/কানেকশন ফেইল ধরবে */
 function preflight(url) {
   return new Promise((resolve) => {
     let done = false;
@@ -135,8 +133,13 @@ export default function Player({ item, servers = [] }) {
     });
   }, [servers, item.type]);
 
+  /* স্টেবল কী — অ্যারের রেফারেন্স বদলালেও ইফেক্ট রি-রান হবে না */
+  const listKey = list.map((s) => s.name).join('|');
+  const listRef = useRef(list);
+  listRef.current = list;
+
   const [activeName, setActiveName] = useState('');
-  const [phase, setPhase] = useState('checking'); // checking | loading | ok | failed
+  const [phase, setPhase] = useState('checking');
   const [probe, setProbe] = useState({});
   const [autoTries, setAutoTries] = useState(0);
   const [season, setSeason] = useState(seasons[0]?.s || 1);
@@ -149,6 +152,8 @@ export default function Player({ item, servers = [] }) {
   const timerRef = useRef(null);
   const autoRef = useRef(0);
   const runRef = useRef(0);
+  const loadedRef = useRef(false);
+  const manualRef = useRef(false);
 
   const active = list.find((s) => s.name === activeName) || null;
 
@@ -199,36 +204,38 @@ export default function Player({ item, servers = [] }) {
   const pageEnd = Math.min(totalEps, (epPage + 1) * EP_PAGE_SIZE);
   const epNumbers = Array.from({ length: pageEnd - pageStart + 1 }, (_, i) => pageStart + i);
 
-  /* সব সার্ভার একসাথে প্যারালাল চেক, তারপর যেটা কাজ করছে সেটা বাছা */
+  /* একবারই চলে: প্যারালাল প্রোব → প্রথম সাড়াদায়ী সার্ভার বাছা */
   useEffect(() => {
     runRef.current += 1;
     const run = runRef.current;
     autoRef.current = 0;
+    loadedRef.current = false;
+    manualRef.current = false;
     setAutoTries(0);
     setActiveName('');
     setPhase('checking');
     setProbe({});
 
     let cancelled = false;
+    const current = listRef.current;
 
     (async () => {
       const results = await Promise.all(
-        list.map(async (s) => ({ name: s.name, ok: await preflight(fill(s.tpl, item.tmdb, season, ep)) }))
+        current.map(async (s) => ({ name: s.name, ok: await preflight(fill(s.tpl, item.tmdb, season, ep)) }))
       );
       if (cancelled || run !== runRef.current) return;
 
       const map = {};
       results.forEach((r) => {
         map[r.name] = r.ok ? 'ok' : 'fail';
-        if (!r.ok) markDead(r.name);
-        else markAlive(r.name);
+        if (r.ok) markAlive(r.name);
+        else markDead(r.name);
       });
       setProbe(map);
 
       const good = results.filter((r) => r.ok).map((r) => r.name);
       const deadNow = readDead();
-      const firstGood = good.find((n) => !deadNow.includes(n)) || good[0];
-      const target = firstGood || list[0]?.name || '';
+      const target = good.find((n) => !deadNow.includes(n)) || good[0] || current[0]?.name || '';
 
       if (!target) {
         setPhase('failed');
@@ -241,27 +248,32 @@ export default function Player({ item, servers = [] }) {
     return () => {
       cancelled = true;
     };
-  }, [item.tmdb, season, ep, list, markDead, markAlive]);
+  }, [item.tmdb, season, ep, listKey, markDead, markAlive]);
 
   const currentUrl = useMemo(() => {
     if (!active) return '';
     return fill(active.tpl, item.tmdb, season, ep);
   }, [active, item.tmdb, season, ep]);
 
-  /* iframe লোড না হলে অটো পরের সার্ভার */
+  /* টাইমার — শুধু লোড শেষ না হলে ফায়ার করবে */
   useEffect(() => {
     clearTimeout(timerRef.current);
     if (!currentUrl || !activeName) return;
+    if (loadedRef.current) return;
 
     setPhase((p) => (p === 'checking' ? p : 'loading'));
 
     timerRef.current = setTimeout(() => {
+      if (loadedRef.current) return;
+
       markDead(activeName);
       setProbe((p) => ({ ...p, [activeName]: 'fail' }));
 
-      const curIdx = list.findIndex((s) => s.name === activeName);
+      const curIdx = listRef.current.findIndex((s) => s.name === activeName);
       const deadNow = readDead();
-      const next = list.slice(curIdx + 1).find((s) => s.name !== activeName && !deadNow.includes(s.name));
+      const next = listRef.current
+        .slice(curIdx + 1)
+        .find((s) => s.name !== activeName && !deadNow.includes(s.name));
 
       if (next && autoRef.current < MAX_AUTO) {
         autoRef.current += 1;
@@ -273,10 +285,20 @@ export default function Player({ item, servers = [] }) {
     }, LOAD_TIMEOUT);
 
     return () => clearTimeout(timerRef.current);
-  }, [currentUrl, activeName, list, markDead]);
+  }, [currentUrl, activeName, markDead]);
+
+  const handleLoaded = () => {
+    clearTimeout(timerRef.current);
+    loadedRef.current = true;
+    markAlive(activeName);
+    setProbe((p) => ({ ...p, [activeName]: 'ok' }));
+    setPhase('ok');
+  };
 
   const pickServer = (name) => {
+    manualRef.current = true;
     autoRef.current = 0;
+    loadedRef.current = false;
     setAutoTries(0);
     setActiveName(name);
     setPhase('loading');
@@ -292,6 +314,7 @@ export default function Player({ item, servers = [] }) {
   const retryAll = () => {
     writeDead([]);
     autoRef.current = 0;
+    loadedRef.current = false;
     setAutoTries(0);
     const first = list[0]?.name;
     if (first) {
@@ -371,11 +394,7 @@ export default function Player({ item, servers = [] }) {
               referrerPolicy="origin"
               allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
               title={item.title}
-              onLoad={() => {
-                markAlive(activeName);
-                setProbe((p) => ({ ...p, [activeName]: 'ok' }));
-                setPhase('ok');
-              }}
+              onLoad={handleLoaded}
             />
           ) : null}
 
