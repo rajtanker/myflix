@@ -1,9 +1,13 @@
 import './globals.css';
 import Link from 'next/link';
+import Script from 'next/script';
 import Header from '@/components/Header';
 import Toast from '@/components/Toast';
 import { SITE } from '@/lib/config';
 import { GENRES, LANGS } from '@/lib/constants';
+
+// ১. শুধু নিচের 'G-XXXXXXXXXX' বদলে তোমার নিজের Google Tag ID বসাও:
+const GA_ID = 'GTM-K6CP8JFM';
 
 export const metadata = {
   metadataBase: new URL(SITE.url),
@@ -14,6 +18,8 @@ export const metadata = {
   description: SITE.description,
   icons: { icon: '/favicon.svg' },
   robots: { index: true, follow: true },
+  // ২. (ঐচ্ছিক) Search Console HTML tag দিলে নিচের কোটেশনের ভেতর বসাতে পারো:
+  // verification: { google: 'তোমার-verification-code' },
 };
 
 export default function RootLayout({ children }) {
@@ -73,6 +79,23 @@ export default function RootLayout({ children }) {
             </span>
           </div>
         </footer>
+
+        {GA_ID && GA_ID !== 'G-XXXXXXXXXX' && (
+          <>
+            <Script
+              src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
+              strategy="afterInteractive"
+            />
+            <Script id="google-analytics" strategy="afterInteractive">
+              {`
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', '${GA_ID}');
+              `}
+            </Script>
+          </>
+        )}
       </body>
     </html>
   );
