@@ -1,4 +1,3 @@
-js
 import { all } from '@/lib/data';
 import { SITE } from '@/lib/config';
 import { GENRES, LANGS } from '@/lib/constants';
