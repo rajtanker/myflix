@@ -1,4 +1,3 @@
-jsx
 import { Suspense } from 'react';
 import BrowseClient from '@/components/BrowseClient';
 
