@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import Player from '@/components/Player';
 import Card from '@/components/Card';
 import SafeImage from '@/components/SafeImage';
+import { BannerAd, NativeAd } from '@/components/AdBanner';
 import { StarIcon } from '@/components/Icons';
 import { all, bySlug, related } from '@/lib/data';
 import { TV_SERVERS, SITE } from '@/lib/config';
@@ -90,7 +91,13 @@ export default function TvPage({ params }) {
         </div>
       </div>
 
-      <div className="ad-slot">{/* Optional Ad Banner */}</div>
+      {/* Adsterra Banner 300x250 */}
+      <BannerAd
+        adKey="f10ea2fbe22f1ee5f877554186d017a5"
+        width={300}
+        height={250}
+        scriptSrc="https://bancadeltempoidea.org/22/f10ea2fbe22f1ee5f877554186d017a5"
+      />
 
       <section className="detail-grid">
         <div className="detail-poster">
@@ -140,6 +147,12 @@ export default function TvPage({ params }) {
           </div>
         </div>
       </section>
+
+      {/* Adsterra Native Banner */}
+      <NativeAd
+        scriptUrl="https://bancadeltempoidea.org/21/bef6ed04dae55e2de1bae450e9965634"
+        containerId="bef6ed04dae55e2de1bae450e9965634"
+      />
 
       {relList.length > 0 && (
         <section>
