@@ -3,6 +3,7 @@ import path from 'path';
 import { execSync } from 'child_process';
 
 const DATA_FILE = path.join(process.cwd(), 'data', 'movies.json');
+const SHORTS_FILE = path.join(process.cwd(), 'data', 'shorts.json');
 const INDEX_FILE = path.join(process.cwd(), 'public', 'db.json');
 const CLIPS_FILE = path.join(process.cwd(), 'public', 'clips.json');
 
@@ -29,17 +30,38 @@ const slimIndex = items.map((m) => ({
   popularity: m.popularity || 0,
 }));
 
-const clipsList = [];
+const clipsMap = new Map();
+try {
+  const savedShorts = JSON.parse(fs.readFileSync(SHORTS_FILE, 'utf8'));
+  if (Array.isArray(savedShorts)) {
+    for (const c of savedShorts) {
+      if (c?.key) clipsMap.set(c.key, c);
+    }
+  }
+} catch {}
+
 for (const m of items) {
   const href = m.type === 'tv' ? `/tv/${m.slug}/` : `/movie/${m.slug}/`;
   const sourceClips = m.clips?.length ? m.clips : (m.trailer ? [{ key: m.trailer, name: 'Official Trailer', type: 'Trailer' }] : []);
   for (const c of sourceClips) {
-    clipsList.push({ id: `${m.id}-${c.key}`, key: c.key, title: m.title, clipName: c.name, clipType: c.type, href });
+    if (c?.key && !clipsMap.has(c.key)) {
+      clipsMap.set(c.key, {
+        id: `${m.id}-${c.key}`,
+        key: c.key,
+        title: m.title,
+        clipName: c.name,
+        clipType: c.type,
+        views: Math.round((m.popularity || 50) * 15000),
+        published: m.releaseDate || '',
+        href,
+      });
+    }
   }
-  if (clipsList.length >= 120) break;
 }
+
+const mergedClips = Array.from(clipsMap.values()).slice(0, 800);
 
 fs.mkdirSync(path.dirname(INDEX_FILE), { recursive: true });
 fs.writeFileSync(INDEX_FILE, JSON.stringify(slimIndex));
-fs.writeFileSync(CLIPS_FILE, JSON.stringify(clipsList));
-console.log(`Synced public/db.json (${slimIndex.length} titles) & public/clips.json (${clipsList.length} clips).`);
+fs.writeFileSync(CLIPS_FILE, JSON.stringify(mergedClips));
+console.log(`Synced public/db.json (${slimIndex.length} titles) & public/clips.json (${mergedClips.length} shorts).`);
