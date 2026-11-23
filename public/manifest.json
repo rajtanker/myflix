@@ -1,0 +1,17 @@
+{
+  "name": "MyFlix — Movies, Series & Anime",
+  "short_name": "MyFlix",
+  "description": "Stream HD movies, TV series, anime, trailers, and movie clips.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#07080d",
+  "theme_color": "#e50914",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
