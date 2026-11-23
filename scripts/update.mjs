@@ -8,37 +8,18 @@ if (!KEY) {
 }
 
 const TMDB_GENRE_MAP = {
-  28: 'Action',
-  12: 'Adventure',
-  16: 'Animation',
-  35: 'Comedy',
-  80: 'Crime',
-  99: 'Documentary',
-  18: 'Drama',
-  10751: 'Family',
-  14: 'Fantasy',
-  36: 'History',
-  27: 'Horror',
-  10402: 'Music',
-  9648: 'Mystery',
-  10749: 'Romance',
-  878: 'Sci-Fi',
-  10770: 'Drama',
-  53: 'Thriller',
-  10752: 'War',
-  37: 'Western',
-  10759: 'Action',
-  10762: 'Family',
-  10763: 'Documentary',
-  10764: 'Drama',
-  10765: 'Sci-Fi',
-  10766: 'Drama',
-  10767: 'Comedy',
-  10768: 'War',
+  28: 'Action', 12: 'Adventure', 16: 'Animation', 35: 'Comedy', 80: 'Crime',
+  99: 'Documentary', 18: 'Drama', 10751: 'Family', 14: 'Fantasy', 36: 'History',
+  27: 'Horror', 10402: 'Music', 9648: 'Mystery', 10749: 'Romance', 878: 'Sci-Fi',
+  10770: 'Drama', 53: 'Thriller', 10752: 'War', 37: 'Western', 10759: 'Action',
+  10762: 'Family', 10763: 'Documentary', 10764: 'Drama', 10765: 'Sci-Fi',
+  10766: 'Drama', 10767: 'Comedy', 10768: 'War',
 };
 
 const DATA_FILE = path.join(process.cwd(), 'data', 'movies.json');
+const NEWS_FILE = path.join(process.cwd(), 'data', 'news.json');
 const INDEX_FILE = path.join(process.cwd(), 'public', 'db.json');
+const CLIPS_FILE = path.join(process.cwd(), 'public', 'clips.json');
 const BASE = 'https://api.themoviedb.org/3';
 const IMG = 'https://image.tmdb.org/t/p/w500';
 const BGD = 'https://image.tmdb.org/t/p/w1280';
@@ -61,27 +42,17 @@ for (const m of existing) {
 }
 
 const slugify = (title, year, tmdbId) => {
-  const base = (title || '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 60);
+  const base = (title || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60);
   return `${base || 'title'}-${year || 'x'}-${tmdbId}`;
 };
 
-const mapGenres = (ids = []) => {
-  const names = ids.map((id) => TMDB_GENRE_MAP[id]).filter(Boolean);
-  return [...new Set(names)];
-};
+const mapGenres = (ids = []) => [...new Set(ids.map((id) => TMDB_GENRE_MAP[id]).filter(Boolean))];
 
 async function get(url, retries = 2) {
   for (let i = 0; i <= retries; i++) {
     try {
       const r = await fetch(url);
-      if (r.status === 429) {
-        await new Promise((res) => setTimeout(res, 1500));
-        continue;
-      }
+      if (r.status === 429) { await new Promise((res) => setTimeout(res, 1500)); continue; }
       if (!r.ok) return null;
       return await r.json();
     } catch {
@@ -95,14 +66,10 @@ async function get(url, retries = 2) {
 let trendingCursor = 1;
 let addedCursor = 0;
 const now = Date.now();
+const today = new Date().toISOString().slice(0, 10);
 
-async function grab(endpoint, type, extra = {}, isTrending = false) {
-  const p = new URLSearchParams({
-    api_key: KEY,
-    language: 'en-US',
-    include_adult: 'false',
-    ...extra,
-  });
+async function grab(endpoint, type, extra = {}, opts = {}) {
+  const p = new URLSearchParams({ api_key: KEY, language: 'en-US', include_adult: 'false', ...extra });
   const data = await get(`${BASE}${endpoint}?${p.toString()}`);
   if (!data?.results) return;
 
@@ -114,19 +81,19 @@ async function grab(endpoint, type, extra = {}, isTrending = false) {
     const releaseDate = r.release_date || r.first_air_date || '';
     const year = releaseDate.slice(0, 4) || '—';
     const genres = mapGenres(r.genre_ids || []);
+    const isUp = !!opts.upcoming || (releaseDate && releaseDate > today);
 
     if (map.has(uid)) {
       const prev = map.get(uid);
       prev.rating = r.vote_average || prev.rating || 0;
       prev.voteCount = r.vote_count || prev.voteCount || 0;
       prev.popularity = r.popularity || prev.popularity || 0;
+      prev.upcoming = isUp;
       if (r.poster_path) prev.poster = IMG + r.poster_path;
       if (r.backdrop_path) prev.backdrop = BGD + r.backdrop_path;
       if (r.overview) prev.overview = r.overview;
       if (genres.length && !prev.enriched) prev.genres = genres;
-      if (isTrending && prev.trendingRank === null) {
-        prev.trendingRank = trendingCursor++;
-      }
+      if (opts.trending && prev.trendingRank === null) prev.trendingRank = trendingCursor++;
       continue;
     }
 
@@ -150,71 +117,53 @@ async function grab(endpoint, type, extra = {}, isTrending = false) {
       director: '',
       tagline: '',
       trailer: '',
+      clips: [],
+      reviews: [],
       imdb: '',
       cast: [],
       seasons: type === 'tv' ? 1 : 0,
       seasonList: [],
-      trendingRank: isTrending ? trendingCursor++ : null,
+      upcoming: isUp,
+      trendingRank: opts.trending ? trendingCursor++ : null,
       enriched: false,
       added: now - addedCursor++,
     });
   }
 }
 
-const today = new Date().toISOString().slice(0, 10);
+console.log('Fetching Trending, Upcoming, Anime & Global Catalog...');
+await grab('/trending/movie/week', 'movie', { page: '1' }, { trending: true });
+await grab('/trending/tv/week', 'tv', { page: '1' }, { trending: true });
+await grab('/trending/movie/week', 'movie', { page: '2' }, { trending: true });
+await grab('/trending/tv/week', 'tv', { page: '2' }, { trending: true });
 
-console.log('Fetching trending & popular titles from TMDB...');
-await grab('/trending/movie/week', 'movie', { page: '1' }, true);
-await grab('/trending/tv/week', 'tv', { page: '1' }, true);
-await grab('/trending/movie/week', 'movie', { page: '2' }, true);
-await grab('/trending/tv/week', 'tv', { page: '2' }, true);
-
+await grab('/movie/upcoming', 'movie', { page: '1', region: 'US' }, { upcoming: true });
 await grab('/movie/now_playing', 'movie', { page: '1' });
-await grab('/movie/now_playing', 'movie', { page: '2' });
 await grab('/movie/popular', 'movie', { page: '1' });
-await grab('/movie/popular', 'movie', { page: '2' });
 await grab('/movie/top_rated', 'movie', { page: '1' });
-
 await grab('/tv/popular', 'tv', { page: '1' });
-await grab('/tv/popular', 'tv', { page: '2' });
+await grab('/tv/on_the_air', 'tv', { page: '1' });
 await grab('/tv/top_rated', 'tv', { page: '1' });
 
-await grab('/discover/movie', 'movie', {
-  sort_by: 'primary_release_date.desc',
-  'primary_release_date.lte': today,
-  'vote_count.gte': '20',
-  page: '1',
-});
+// Dedicated Anime Pull
+await grab('/discover/tv', 'tv', { with_genres: '16', with_original_language: 'ja', sort_by: 'popularity.desc', page: '1' });
+await grab('/discover/movie', 'movie', { with_genres: '16', with_original_language: 'ja', sort_by: 'popularity.desc', page: '1' });
 
-for (const l of ['hi', 'ko', 'ja', 'es', 'fr', 'bn', 'ta', 'te', 'ml', 'kn']) {
-  await grab('/discover/movie', 'movie', {
-    sort_by: 'popularity.desc',
-    with_original_language: l,
-    'vote_count.gte': '10',
-    page: '1',
-  });
-}
-
-for (const l of ['ko', 'ja', 'hi', 'es']) {
-  await grab('/discover/tv', 'tv', {
-    sort_by: 'popularity.desc',
-    with_original_language: l,
-    'vote_count.gte': '10',
-    page: '1',
-  });
+for (const l of ['hi', 'ko', 'ja', 'es', 'fr', 'bn', 'ta', 'te']) {
+  await grab('/discover/movie', 'movie', { sort_by: 'popularity.desc', with_original_language: l, 'vote_count.gte': '10', page: '1' });
 }
 
 const toEnrich = Array.from(map.values())
-  .filter((x) => !x.enriched)
+  .filter((x) => !x.enriched || !Array.isArray(x.reviews) || !Array.isArray(x.clips))
   .sort((a, b) => (a.trendingRank ?? 999999) - (b.trendingRank ?? 999999) || (b.popularity || 0) - (a.popularity || 0))
-  .slice(0, 240);
+  .slice(0, 220);
 
-console.log(`Enriching ${toEnrich.length} titles with cast, trailers, runtime & seasons...`);
+console.log(`Enriching ${toEnrich.length} titles with reviews, clips, cast & seasons...`);
 
 async function enrichOne(m) {
   const endpoint = m.type === 'tv' ? 'tv' : 'movie';
   const d = await get(
-    `${BASE}/${endpoint}/${m.tmdb}?api_key=${KEY}&language=en-US&append_to_response=credits,videos,external_ids`
+    `${BASE}/${endpoint}/${m.tmdb}?api_key=${KEY}&language=en-US&append_to_response=credits,videos,reviews,external_ids`
   );
   if (!d) return;
 
@@ -235,19 +184,31 @@ async function enrichOne(m) {
       .filter((s) => s.season_number >= 1 && s.episode_count > 0)
       .sort((a, b) => a.season_number - b.season_number)
       .slice(0, 25);
-    m.seasonList = validSeasons.map((s) => ({
-      s: s.season_number,
-      eps: Math.min(s.episode_count, 200),
-    }));
+    m.seasonList = validSeasons.map((s) => ({ s: s.season_number, eps: Math.min(s.episode_count, 200) }));
     m.seasons = d.number_of_seasons || m.seasonList.length || 1;
   }
 
-  const vids = d.videos?.results || [];
+  const vids = (d.videos?.results || []).filter((v) => v.site === 'YouTube' && v.key);
   const ytTrailer =
-    vids.find((v) => v.site === 'YouTube' && v.type === 'Trailer' && v.official) ||
-    vids.find((v) => v.site === 'YouTube' && v.type === 'Trailer') ||
-    vids.find((v) => v.site === 'YouTube' && v.type === 'Teaser');
+    vids.find((v) => v.type === 'Trailer' && v.official) ||
+    vids.find((v) => v.type === 'Trailer') ||
+    vids.find((v) => v.type === 'Teaser');
   m.trailer = ytTrailer?.key || '';
+  m.clips = vids
+    .filter((v) => ['Clip', 'Featurette', 'Teaser', 'Trailer', 'Bloopers'].includes(v.type))
+    .slice(0, 3)
+    .map((v) => ({ key: v.key, name: v.name || 'Official Clip', type: v.type }));
+
+  m.reviews = (d.reviews?.results || [])
+    .filter((rv) => rv.content)
+    .slice(0, 3)
+    .map((rv) => ({
+      author: rv.author || 'Critic',
+      rating: rv.author_details?.rating || 0,
+      content: rv.content.replace(/\s+/g, ' ').slice(0, 420) + (rv.content.length > 420 ? '...' : ''),
+      createdAt: (rv.created_at || '').slice(0, 10),
+    }));
+
   m.enriched = true;
 }
 
@@ -267,23 +228,53 @@ const finalList = Array.from(map.values())
 
 fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
 fs.mkdirSync(path.dirname(INDEX_FILE), { recursive: true });
-
 fs.writeFileSync(DATA_FILE, JSON.stringify(finalList));
 
 const slimIndex = finalList.map((m) => ({
-  id: m.id,
-  tmdb: m.tmdb,
-  type: m.type,
-  title: m.title,
-  slug: m.slug,
-  year: m.year,
-  releaseDate: m.releaseDate || '',
-  poster: m.poster,
-  rating: m.rating || 0,
-  lang: m.lang || 'en',
-  genres: m.genres || [],
+  id: m.id, tmdb: m.tmdb, type: m.type, title: m.title, slug: m.slug, year: m.year,
+  releaseDate: m.releaseDate || '', poster: m.poster, backdrop: m.backdrop || '',
+  overview: (m.overview || '').slice(0, 260), rating: m.rating || 0, runtime: m.runtime || 0,
+  seasons: m.seasons || 0, trailer: m.trailer || '', director: m.director || '',
+  cast: (m.cast || []).slice(0, 6), lang: m.lang || 'en', genres: m.genres || [],
   popularity: m.popularity || 0,
 }));
 fs.writeFileSync(INDEX_FILE, JSON.stringify(slimIndex));
 
-console.log(`Done! Saved ${finalList.length} titles to data/movies.json & public/db.json.`);
+// Build Shorts / Clips feed
+const clipsList = [];
+for (const m of finalList) {
+  const href = m.type === 'tv' ? `/tv/${m.slug}/` : `/movie/${m.slug}/`;
+  const sourceClips = m.clips?.length ? m.clips : (m.trailer ? [{ key: m.trailer, name: 'Official Trailer', type: 'Trailer' }] : []);
+  for (const c of sourceClips) {
+    clipsList.push({ id: `${m.id}-${c.key}`, key: c.key, title: m.title, clipName: c.name, clipType: c.type, href });
+  }
+  if (clipsList.length >= 120) break;
+}
+fs.writeFileSync(CLIPS_FILE, JSON.stringify(clipsList));
+
+// Build Daily Cinema News Digest
+const newsList = [];
+const picks = [
+  ...finalList.filter((m) => typeof m.trendingRank === 'number').slice(0, 8),
+  ...finalList.filter((m) => m.upcoming).slice(0, 8),
+];
+const seenNews = new Set();
+for (const m of picks) {
+  if (seenNews.has(m.id)) continue;
+  seenNews.add(m.id);
+  const href = m.type === 'tv' ? `/tv/${m.slug}/` : `/movie/${m.slug}/`;
+  newsList.push({
+    id: m.id,
+    title: m.upcoming
+      ? `Upcoming Spotlight: "${m.title}" Set for ${m.releaseDate || m.year}`
+      : `Trending Worldwide: Why Everyone Is Watching "${m.title}"`,
+    summary: (m.overview || '').slice(0, 170),
+    date: m.releaseDate || today,
+    image: m.backdrop || m.poster,
+    href,
+    tag: m.upcoming ? 'Release Radar' : (m.type === 'tv' ? 'Series Buzz' : 'Trending Spotlight'),
+  });
+}
+fs.writeFileSync(NEWS_FILE, JSON.stringify(newsList.slice(0, 24)));
+
+console.log(`Synced ${finalList.length} titles, ${clipsList.length} clips, ${newsList.length} news briefs.`);
