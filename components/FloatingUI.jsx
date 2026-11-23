@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import QuickModal from '@/components/QuickModal';
 import { getWatchlist, subscribeStorage } from '@/lib/storage';
 
 export default function FloatingUI() {
@@ -29,6 +30,8 @@ export default function FloatingUI() {
 
   return (
     <>
+      <QuickModal />
+
       {showTop && (
         <button
           type="button"
