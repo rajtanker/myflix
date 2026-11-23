@@ -30,7 +30,7 @@ export default function FloatingUI() {
     <>
       <QuickModal />
       <SettingsModal />
-      <CineBot />
+      {!pathname?.startsWith('/shorts/') && <CineBot />}
 
       {showTop && (
         <button
