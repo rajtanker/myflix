@@ -4,7 +4,17 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { SITE } from '@/lib/config';
 import { getWatchlist, subscribeStorage } from '@/lib/storage';
-import { SearchIcon, BookmarkIcon, MenuIcon, CloseIcon, PlayIcon, StarIcon } from '@/components/Icons';
+import { useI18n } from '@/lib/i18n';
+import {
+  SearchIcon,
+  BookmarkIcon,
+  MenuIcon,
+  CloseIcon,
+  PlayIcon,
+  StarIcon,
+  SettingsIcon,
+  ChevronDownIcon,
+} from '@/components/Icons';
 import SafeImage from '@/components/SafeImage';
 
 let catalogPromise = null;
@@ -20,13 +30,16 @@ function loadCatalog() {
 export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
+  const { t } = useI18n();
   const [wlCount, setWlCount] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [q, setQ] = useState('');
   const [results, setResults] = useState([]);
   const [openDrop, setOpenDrop] = useState(false);
   const inputRef = useRef(null);
   const wrapRef = useRef(null);
+  const moreRef = useRef(null);
 
   useEffect(() => {
     setWlCount(getWatchlist().length);
@@ -36,23 +49,23 @@ export default function Header() {
   useEffect(() => {
     setMenuOpen(false);
     setOpenDrop(false);
+    setMoreOpen(false);
   }, [pathname]);
 
   useEffect(() => {
     const onKey = (e) => {
-      if ((e.key === '/' || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k')) && document.activeElement?.tagName !== 'INPUT') {
+      if ((e.key === '/' || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k')) && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
         e.preventDefault();
         inputRef.current?.focus();
       } else if (e.key === 'Escape') {
         setOpenDrop(false);
         setMenuOpen(false);
-        inputRef.current?.blur();
+        setMoreOpen(false);
       }
     };
     const onClickOutside = (e) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target)) {
-        setOpenDrop(false);
-      }
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpenDrop(false);
+      if (moreRef.current && !moreRef.current.contains(e.target)) setMoreOpen(false);
     };
     window.addEventListener('keydown', onKey);
     document.addEventListener('mousedown', onClickOutside);
@@ -74,8 +87,9 @@ export default function Header() {
     const matches = items
       .filter(
         (m) =>
-          m.title.toLowerCase().includes(term) ||
-          (m.genres || []).some((g) => g.toLowerCase().includes(term))
+          (m.title || '').toLowerCase().includes(term) ||
+          (m.genres || []).some((g) => g.toLowerCase().includes(term)) ||
+          (m.cast || []).some((c) => c.toLowerCase().includes(term))
       )
       .slice(0, 6);
     setResults(matches);
@@ -95,25 +109,43 @@ export default function Header() {
       <header className="site-header">
         <div className="header-inner">
           <Link href="/" className="logo">
-            <span className="logo-badge">
-              <PlayIcon size={15} />
-            </span>
-            <span>
-              {SITE.brandPrefix}
-              <span className="logo-accent">{SITE.brandAccent}</span>
-            </span>
+            <span className="logo-badge"><PlayIcon size={15} /></span>
+            <span>{SITE.brandPrefix}<span className="logo-accent">{SITE.brandAccent}</span></span>
           </Link>
 
           <nav className="nav-links" aria-label="Main navigation">
-            <Link href="/" className={pathname === '/' ? 'active' : ''}>Home</Link>
-            <Link href="/movies/" className={pathname === '/movies/' ? 'active' : ''}>Movies</Link>
-            <Link href="/tv-shows/" className={pathname === '/tv-shows/' ? 'active' : ''}>TV Shows</Link>
-            <Link href="/browse/" className={pathname === '/browse/' ? 'active' : ''}>Browse</Link>
-            <Link href="/watchlist/" className={pathname === '/watchlist/' ? 'active' : ''}>
-              <BookmarkIcon size={15} />
-              Watchlist
-              {wlCount > 0 && <span className="wl-count">{wlCount}</span>}
-            </Link>
+            <Link href="/" className={pathname === '/' ? 'active' : ''}>{t('home')}</Link>
+            <Link href="/movies/" className={pathname === '/movies/' ? 'active' : ''}>{t('movies')}</Link>
+            <Link href="/tv-shows/" className={pathname === '/tv-shows/' ? 'active' : ''}>{t('series')}</Link>
+            <Link href="/anime/" className={pathname === '/anime/' ? 'active' : ''}>{t('anime')}</Link>
+            <Link href="/shorts/" className={pathname === '/shorts/' ? 'active' : ''}>{t('shorts')}</Link>
+
+            <div className="more-wrap" ref={moreRef}>
+              <button
+                type="button"
+                className="more-btn"
+                onClick={() => setMoreOpen((v) => !v)}
+              >
+                {t('more')} <ChevronDownIcon size={14} />
+              </button>
+              {moreOpen && (
+                <div className="more-menu">
+                  <Link href="/browse/">{t('browse')}</Link>
+                  <Link href="/upcoming/">{t('upcoming')}</Link>
+                  <Link href="/news/">{t('news')}</Link>
+                  <Link href="/watchlist/">
+                    <span>{t('watchlist')}</span>
+                    {wlCount > 0 && <span className="wl-count">{wlCount}</span>}
+                  </Link>
+                  <button type="button" onClick={() => { setMoreOpen(false); window.dispatchEvent(new Event('myflix:cinebot')); }}>
+                    {t('cinebot')}
+                  </button>
+                  <button type="button" onClick={() => { setMoreOpen(false); window.dispatchEvent(new Event('myflix:settings')); }}>
+                    {t('settings')}
+                  </button>
+                </div>
+              )}
+            </div>
           </nav>
 
           <div className="search-wrap" ref={wrapRef}>
@@ -125,7 +157,7 @@ export default function Header() {
                 value={q}
                 onFocus={() => { if (results.length) setOpenDrop(true); loadCatalog(); }}
                 onChange={(e) => handleInput(e.target.value)}
-                placeholder="Search movies, series, genres..."
+                placeholder={t('searchPh')}
                 aria-label="Search catalog"
               />
               <span className="kbd-hint">/</span>
@@ -180,6 +212,16 @@ export default function Header() {
 
           <button
             type="button"
+            className="header-icon-btn"
+            aria-label="Settings"
+            title={t('settings')}
+            onClick={() => window.dispatchEvent(new Event('myflix:settings'))}
+          >
+            <SettingsIcon size={18} />
+          </button>
+
+          <button
+            type="button"
             className="mobile-menu-btn"
             aria-label="Toggle Menu"
             onClick={() => setMenuOpen((v) => !v)}
@@ -191,12 +233,16 @@ export default function Header() {
 
       {menuOpen && (
         <div className="mobile-drawer">
-          <Link href="/">Home</Link>
-          <Link href="/movies/">Movies</Link>
-          <Link href="/tv-shows/">TV Shows</Link>
-          <Link href="/browse/">Explore &amp; Filter</Link>
+          <Link href="/">{t('home')}</Link>
+          <Link href="/movies/">{t('movies')}</Link>
+          <Link href="/tv-shows/">{t('series')}</Link>
+          <Link href="/anime/">{t('anime')}</Link>
+          <Link href="/shorts/">{t('shorts')}</Link>
+          <Link href="/upcoming/">{t('upcoming')}</Link>
+          <Link href="/browse/">{t('browse')}</Link>
+          <Link href="/news/">{t('news')}</Link>
           <Link href="/watchlist/">
-            <span>My Watchlist</span>
+            <span>{t('watchlist')}</span>
             {wlCount > 0 && <span className="wl-count">{wlCount}</span>}
           </Link>
         </div>
