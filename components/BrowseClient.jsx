@@ -20,16 +20,11 @@ export default function BrowseClient({ mode = 'browse' }) {
   const [visible, setVisible] = useState(PAGE_SIZE);
 
   useEffect(() => {
-    const pq = searchParams.get('q') || '';
-    const pType = searchParams.get('type') || 'all';
-    const pGenre = searchParams.get('genre') || 'all';
-    const pLang = searchParams.get('lang') || 'all';
-    const pSort = searchParams.get('sort') || 'popular';
-    setQ(pq);
-    setType(pType);
-    setGenre(pGenre);
-    setLang(pLang);
-    setSort(pSort);
+    setQ(searchParams.get('q') || '');
+    setType(searchParams.get('type') || 'all');
+    setGenre(searchParams.get('genre') || 'all');
+    setLang(searchParams.get('lang') || 'all');
+    setSort(searchParams.get('sort') || 'popular');
     setVisible(PAGE_SIZE);
   }, [searchParams]);
 
@@ -61,8 +56,10 @@ export default function BrowseClient({ mode = 'browse' }) {
       if (term) {
         const matchTitle = (m.title || '').toLowerCase().includes(term);
         const matchGenre = (m.genres || []).some((g) => g.toLowerCase().includes(term));
+        const matchCast = (m.cast || []).some((c) => c.toLowerCase().includes(term));
+        const matchDir = (m.director || '').toLowerCase().includes(term);
         const matchYear = String(m.year || '').includes(term);
-        if (!matchTitle && !matchGenre && !matchYear) return false;
+        if (!matchTitle && !matchGenre && !matchCast && !matchDir && !matchYear) return false;
       }
       return true;
     });
@@ -92,20 +89,29 @@ export default function BrowseClient({ mode = 'browse' }) {
 
   return (
     <>
-      <div className="page-banner">
-        <h1>{mode === 'search' && q ? `Search Results: "${q}"` : 'Explore Movies & TV Shows'}</h1>
-        <p>Filter by genre, language, release era, or search across our full HD catalog.</p>
+      <div className="page-banner" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 14 }}>
+        <div>
+          <h1>{mode === 'search' && q ? `Search Results: "${q}"` : 'Explore Movies & TV Shows'}</h1>
+          <p>Search by title, actor, director, genre, language, or release era.</p>
+        </div>
+        <button
+          type="button"
+          className="btn btn-primary btn-sm"
+          onClick={() => window.dispatchEvent(new Event('myflix:surprise'))}
+        >
+          Surprise Me!
+        </button>
       </div>
 
       <div className="filter-panel">
         <div className="filter-field">
-          <label htmlFor="f-q">Keyword</label>
+          <label htmlFor="f-q">Keyword / Actor</label>
           <input
             id="f-q"
             type="search"
             value={q}
             onChange={(e) => { setQ(e.target.value); setVisible(PAGE_SIZE); }}
-            placeholder="Title or keyword..."
+            placeholder="Movie, actor, director..."
           />
         </div>
 
@@ -174,7 +180,11 @@ export default function BrowseClient({ mode = 'browse' }) {
       </div>
 
       {loading ? (
-        <div className="empty-box">Loading movies &amp; TV shows...</div>
+        <div className="grid">
+          {Array.from({ length: 12 }).map((_, i) => (
+            <div key={i} className="skeleton-card" />
+          ))}
+        </div>
       ) : filtered.length === 0 ? (
         <div className="empty-box">
           <h2>No matching titles found</h2>
