@@ -23,7 +23,7 @@ const CLIPS_FILE = path.join(process.cwd(), 'public', 'clips.json');
 const BASE = 'https://api.themoviedb.org/3';
 const IMG = 'https://image.tmdb.org/t/p/w500';
 const BGD = 'https://image.tmdb.org/t/p/w1280';
-const MAX_ITEMS = 1200;
+const MAX_ITEMS = 2600;
 
 let existing = [];
 try {
@@ -152,6 +152,17 @@ await grab('/discover/movie', 'movie', { with_genres: '16', with_original_langua
 for (const l of ['hi', 'ko', 'ja', 'es', 'fr', 'bn', 'ta', 'te']) {
   await grab('/discover/movie', 'movie', { sort_by: 'popularity.desc', with_original_language: l, 'vote_count.gte': '10', page: '1' });
 }
+
+// Pull Classics & Multi-era Web Series / Movies safely
+for (const p of ['2', '3', '4']) {
+  await grab('/movie/popular', 'movie', { page: p });
+  await grab('/movie/top_rated', 'movie', { page: p });
+  await grab('/tv/popular', 'tv', { page: p });
+  await grab('/tv/top_rated', 'tv', { page: p });
+}
+await grab('/discover/movie', 'movie', { sort_by: 'vote_count.desc', 'primary_release_date.lte': '2009-12-31', page: '1' });
+await grab('/discover/movie', 'movie', { sort_by: 'vote_count.desc', 'primary_release_date.lte': '1999-12-31', page: '1' });
+await grab('/discover/tv', 'tv', { sort_by: 'vote_count.desc', page: '2' });
 
 const toEnrich = Array.from(map.values())
   .filter((x) => !x.enriched || !Array.isArray(x.reviews) || !Array.isArray(x.clips))
