@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import QuickModal from '@/components/QuickModal';
+import SettingsModal from '@/components/SettingsModal';
+import CineBot from '@/components/CineBot';
 import { getWatchlist, subscribeStorage } from '@/lib/storage';
 
 export default function FloatingUI() {
@@ -13,24 +15,22 @@ export default function FloatingUI() {
   useEffect(() => {
     setWlCount(getWatchlist().length);
     const unsub = subscribeStorage(() => setWlCount(getWatchlist().length));
-
     const onScroll = () => setShowTop(window.scrollY > 420);
     window.addEventListener('scroll', onScroll, { passive: true });
     onScroll();
-
     return () => {
       unsub();
       window.removeEventListener('scroll', onScroll);
     };
   }, []);
 
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
   return (
     <>
       <QuickModal />
+      <SettingsModal />
+      <CineBot />
 
       {showTop && (
         <button
@@ -65,12 +65,11 @@ export default function FloatingUI() {
           <span>Movies</span>
         </Link>
 
-        <Link href="/tv-shows/" className={`mbn-item ${pathname === '/tv-shows/' ? 'active' : ''}`}>
+        <Link href="/shorts/" className={`mbn-item ${pathname === '/shorts/' ? 'active' : ''}`}>
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="2" y="7" width="20" height="15" rx="2" ry="2" />
-            <polyline points="17 2 12 7 7 2" />
+            <polygon points="5 3 19 12 5 21 5 3" />
           </svg>
-          <span>Series</span>
+          <span>Shorts</span>
         </Link>
 
         <Link href="/browse/" className={`mbn-item ${pathname === '/browse/' ? 'active' : ''}`}>
