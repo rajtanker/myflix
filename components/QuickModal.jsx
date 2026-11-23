@@ -79,7 +79,12 @@ export default function QuickModal() {
 
   if (!item) return null;
 
-  const href = item.type === 'tv' ? `/tv/${item.slug}/` : `/movie/${item.slug}/`;
+  const href =
+  item.live || !item.slug
+    ? `/watch/?type=${item.type || 'movie'}&id=${item.tmdb}`
+    : item.type === 'tv'
+    ? `/tv/${item.slug}/`
+    : `/movie/${item.slug}/`;
   const langObj = langByCode(item.lang);
 
   const rollAnother = async () => {
