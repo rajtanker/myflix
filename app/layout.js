@@ -1,6 +1,7 @@
 import './globals.css';
 import Link from 'next/link';
 import Script from 'next/script';
+import AppBanner from '@/components/AppBanner';
 import Header from '@/components/Header';
 import Toast from '@/components/Toast';
 import FloatingUI from '@/components/FloatingUI';
@@ -16,20 +17,14 @@ export const viewport = {
 export const metadata = {
   metadataBase: new URL(SITE.url),
   applicationName: SITE.name,
+  manifest: '/manifest.json',
   title: {
     default: `${SITE.name} — ${SITE.tagline}`,
     template: `%s | ${SITE.name}`,
   },
   description: SITE.description,
-  keywords: [
-    'watch movies online',
-    'free hd movies',
-    'tv series streaming',
-    'k-drama',
-    'anime',
-    'myflix',
-  ],
-  icons: { icon: '/favicon.svg' },
+  keywords: ['watch movies online', 'free hd movies', 'tv series', 'anime', 'upcoming movies', 'myflix'],
+  icons: { icon: '/favicon.svg', apple: '/favicon.svg' },
   openGraph: {
     type: 'website',
     siteName: SITE.name,
@@ -68,6 +63,7 @@ export default function RootLayout({ children }) {
           }}
         />
 
+        <AppBanner />
         <Header />
         <main className="main-container">{children}</main>
         <FloatingUI />
@@ -77,18 +73,13 @@ export default function RootLayout({ children }) {
           <div className="footer-inner">
             <div className="footer-col">
               <div className="logo" style={{ marginBottom: 10 }}>
-                <span>
-                  {SITE.brandPrefix}
-                  <span className="logo-accent">{SITE.brandAccent}</span>
-                </span>
+                <span>{SITE.brandPrefix}<span className="logo-accent">{SITE.brandAccent}</span></span>
               </div>
-              <p style={{ maxWidth: 360, lineHeight: 1.65 }}>
-                {SITE.description}
-              </p>
+              <p style={{ maxWidth: 360, lineHeight: 1.65 }}>{SITE.description}</p>
               <div className="footer-pills">
                 <span className="footer-pill">HD Quality</span>
                 <span className="footer-pill">Daily Auto-Sync</span>
-                <span className="footer-pill">No Signup</span>
+                <span className="footer-pill">Multi-Language UI</span>
               </div>
               <div className="footer-kbd-tip">
                 <span>Quick Search: Press</span>
@@ -103,9 +94,9 @@ export default function RootLayout({ children }) {
               <div className="footer-links">
                 <Link href="/movies/">Trending Movies</Link>
                 <Link href="/tv-shows/">Popular TV Series</Link>
-                <Link href="/browse/">Full Catalog Explorer</Link>
-                <Link href="/watchlist/">My Watchlist</Link>
-                <Link href="/search/">Search Catalog</Link>
+                <Link href="/anime/">Anime Universe</Link>
+                <Link href="/upcoming/">Upcoming Releases</Link>
+                <Link href="/shorts/">Clips &amp; Shorts</Link>
               </div>
             </div>
 
@@ -121,9 +112,10 @@ export default function RootLayout({ children }) {
             <div className="footer-col">
               <h3>Languages &amp; Legal</h3>
               <div className="footer-links">
-                {LANGS.slice(0, 4).map((l) => (
+                {LANGS.slice(0, 3).map((l) => (
                   <Link key={l.slug} href={`/language/${l.slug}/`}>{l.name} Cinema</Link>
                 ))}
+                <Link href="/news/">Movie News</Link>
                 <Link href="/about/">About Us</Link>
                 <Link href="/dmca/">DMCA</Link>
                 <Link href="/privacy/">Privacy Policy</Link>
@@ -136,9 +128,7 @@ export default function RootLayout({ children }) {
             <span>
               Disclaimer: {SITE.name} does not host any files on its servers. All media is provided by non-affiliated third-party services.
             </span>
-            <span>
-              Powered by TMDB API (not endorsed or certified by TMDB).
-            </span>
+            <span>Powered by TMDB API (not endorsed or certified by TMDB).</span>
           </div>
         </footer>
 
