@@ -3,8 +3,9 @@ import { notFound } from 'next/navigation';
 import Player from '@/components/Player';
 import Card from '@/components/Card';
 import SafeImage from '@/components/SafeImage';
+import ReviewsSection from '@/components/ReviewsSection';
 import { BannerAd, NativeAd } from '@/components/AdBanner';
-import { StarIcon } from '@/components/Icons';
+import { GenreIcon, StarIcon } from '@/components/Icons';
 import { all, bySlug, related } from '@/lib/data';
 import { MOVIE_SERVERS, SITE } from '@/lib/config';
 import { genreNameToSlug, langByCode } from '@/lib/constants';
@@ -75,12 +76,7 @@ export default function MoviePage({ params }) {
       />
 
       <div className="watch-backdrop">
-        <SafeImage
-          src={m.backdrop || m.poster}
-          fallback="/nobackdrop.svg"
-          alt=""
-          className="watch-backdrop-img"
-        />
+        <SafeImage src={m.backdrop || m.poster} fallback="/nobackdrop.svg" alt="" className="watch-backdrop-img" />
         <div className="watch-backdrop-fade" />
 
         <div className="watch-inner">
@@ -129,7 +125,7 @@ export default function MoviePage({ params }) {
             )}
             {(m.genres || []).map((g) => (
               <Link key={g} href={`/genre/${genreNameToSlug(g)}/`} className="meta-pill link">
-                {g}
+                <GenreIcon genre={g} size={12} /> {g}
               </Link>
             ))}
           </div>
@@ -138,10 +134,22 @@ export default function MoviePage({ params }) {
 
           <div className="detail-facts">
             {m.director && (
-              <div><strong>Director:</strong> {m.director}</div>
+              <div>
+                <strong>Director:</strong>{' '}
+                <Link href={`/browse/?q=${encodeURIComponent(m.director)}`} className="meta-pill link">
+                  {m.director}
+                </Link>
+              </div>
             )}
             {m.cast?.length > 0 && (
-              <div><strong>Starring:</strong> {m.cast.join(', ')}</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+                <strong>Starring:</strong>
+                {m.cast.map((actor) => (
+                  <Link key={actor} href={`/browse/?q=${encodeURIComponent(actor)}`} className="meta-pill link">
+                    {actor}
+                  </Link>
+                ))}
+              </div>
             )}
             {m.releaseDate && (
               <div><strong>Release Date:</strong> {m.releaseDate}</div>
@@ -156,18 +164,15 @@ export default function MoviePage({ params }) {
         containerId="bef6ed04dae55e2de1bae450e9965634"
       />
 
+      <ReviewsSection movieId={m.id} internetReviews={m.reviews || []} />
+
       {relList.length > 0 && (
         <section>
           <div className="sec-head">
-            <h2 className="sec-title">
-              <span className="sec-bar" />
-              You May Also Like
-            </h2>
+            <h2 className="sec-title"><span className="sec-bar" />You May Also Like</h2>
           </div>
           <div className="grid">
-            {relList.map((x) => (
-              <Card key={x.id} m={x} />
-            ))}
+            {relList.map((x) => <Card key={x.id} m={x} />)}
           </div>
         </section>
       )}
