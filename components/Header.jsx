@@ -7,7 +7,6 @@ import { getWatchlist, subscribeStorage } from '@/lib/storage';
 import { useI18n } from '@/lib/i18n';
 import {
   SearchIcon,
-  BookmarkIcon,
   MenuIcon,
   CloseIcon,
   PlayIcon,
@@ -40,6 +39,8 @@ export default function Header() {
   const inputRef = useRef(null);
   const wrapRef = useRef(null);
   const moreRef = useRef(null);
+  const timerRef = useRef(null);
+  const reqIdRef = useRef(0);
 
   useEffect(() => {
     setWlCount(getWatchlist().length);
@@ -78,13 +79,19 @@ export default function Header() {
   const handleInput = async (val) => {
     setQ(val);
     const term = val.trim().toLowerCase();
+    clearTimeout(timerRef.current);
+    const reqId = ++reqIdRef.current;
+
     if (term.length < 2) {
       setResults([]);
       setOpenDrop(false);
       return;
     }
+
     const items = await loadCatalog();
-    const matches = items
+    if (reqId !== reqIdRef.current) return;
+
+    const localMatches = items
       .filter(
         (m) =>
           (m.title || '').toLowerCase().includes(term) ||
@@ -92,8 +99,29 @@ export default function Header() {
           (m.cast || []).some((c) => c.toLowerCase().includes(term))
       )
       .slice(0, 6);
-    setResults(matches);
+
+    setResults(localMatches);
     setOpenDrop(true);
+
+    // Also pull from Live TMDB (1M+ titles) after short debounce
+    timerRef.current = setTimeout(async () => {
+      try {
+        const r = await fetch(`/api/tmdb?action=search&q=${encodeURIComponent(val.trim())}&page=1`);
+        if (!r.ok || reqId !== reqIdRef.current) return;
+        const d = await r.json();
+        const localMap = new Map(items.map((x) => [x.id, x]));
+        const merged = [...localMatches];
+        const seen = new Set(localMatches.map((x) => x.id));
+
+        for (const liveItem of d.results || []) {
+          if (seen.has(liveItem.id)) continue;
+          seen.add(liveItem.id);
+          merged.push(localMap.get(liveItem.id) || liveItem);
+          if (merged.length >= 8) break;
+        }
+        if (reqId === reqIdRef.current) setResults(merged);
+      } catch {}
+    }, 320);
   };
 
   const handleSubmit = (e) => {
@@ -103,6 +131,13 @@ export default function Header() {
     setOpenDrop(false);
     router.push(`/search/?q=${encodeURIComponent(term)}`);
   };
+
+  const getItemHref = (m) =>
+    m.live || !m.slug
+      ? `/watch/?type=${m.type || 'movie'}&id=${m.tmdb}`
+      : m.type === 'tv'
+      ? `/tv/${m.slug}/`
+      : `/movie/${m.slug}/`;
 
   return (
     <>
@@ -121,11 +156,7 @@ export default function Header() {
             <Link href="/shorts/" className={pathname === '/shorts/' ? 'active' : ''}>{t('shorts')}</Link>
 
             <div className="more-wrap" ref={moreRef}>
-              <button
-                type="button"
-                className="more-btn"
-                onClick={() => setMoreOpen((v) => !v)}
-              >
+              <button type="button" className="more-btn" onClick={() => setMoreOpen((v) => !v)}>
                 {t('more')} <ChevronDownIcon size={14} />
               </button>
               {moreOpen && (
@@ -170,7 +201,7 @@ export default function Header() {
                     {results.map((m) => (
                       <Link
                         key={m.id}
-                        href={m.type === 'tv' ? `/tv/${m.slug}/` : `/movie/${m.slug}/`}
+                        href={getItemHref(m)}
                         className="search-item"
                         onClick={() => setOpenDrop(false)}
                       >
@@ -198,12 +229,12 @@ export default function Header() {
                       className="search-all-btn"
                       onClick={() => setOpenDrop(false)}
                     >
-                      View all results for &ldquo;{q.trim()}&rdquo; →
+                      Search all 1,000,000+ titles for &ldquo;{q.trim()}&rdquo; →
                     </Link>
                   </>
                 ) : (
                   <div style={{ padding: 16, fontSize: 13, color: '#9aa0b4', textAlign: 'center' }}>
-                    No instant matches for &ldquo;{q.trim()}&rdquo;
+                    Searching global catalog for &ldquo;{q.trim()}&rdquo;...
                   </div>
                 )}
               </div>
