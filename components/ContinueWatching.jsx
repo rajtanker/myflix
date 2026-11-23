@@ -28,7 +28,14 @@ export default function ContinueWatching() {
       <div className="row-track">
         {list.map((m) => {
           const hash = m.type === 'tv' && m.s && m.e ? `#s${m.s}e${m.e}` : '';
-          const href = (m.type === 'tv' ? `/tv/${m.slug}/` : `/movie/${m.slug}/`) + hash;
+          const base =
+            m.live || !m.slug
+              ? `/watch/?type=${m.type || 'movie'}&id=${m.tmdb}`
+              : m.type === 'tv'
+              ? `/tv/${m.slug}/`
+              : `/movie/${m.slug}/`;
+          const href = base + hash;
+
           return (
             <div key={m.id} className="card">
               <div style={{ position: 'relative' }}>
