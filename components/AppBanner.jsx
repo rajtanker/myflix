@@ -11,7 +11,7 @@ export default function AppBanner() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showGuide, setShowGuide] = useState(false);
 
-  const isWatching = pathname?.startsWith('/movie/') || pathname?.startsWith('/tv/');
+  const isWatching = pathname?.startsWith('/movie/') || pathname?.startsWith('/tv/') || pathname?.startsWith('/shorts/');
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
