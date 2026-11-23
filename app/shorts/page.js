@@ -1,19 +1,11 @@
 import ShortsPlayer from '@/components/ShortsPlayer';
 
 export const metadata = {
-  title: 'Movie Clips & Shorts',
-  description: 'Watch short movie clips, funny moments, behind-the-scenes featurettes, and teasers.',
+  title: 'Infinite Movie Reels & Shorts',
+  description: 'Scroll endlessly through trending high-view movie clips, funny scenes, anime moments, and trailers.',
   alternates: { canonical: '/shorts/' },
 };
 
 export default function ShortsPage() {
-  return (
-    <>
-      <div className="page-banner" style={{ textAlign: 'center' }}>
-        <h1>Movie Clips &amp; Shorts</h1>
-        <p>Bite-sized movie scenes, behind-the-scenes moments, and official teasers.</p>
-      </div>
-      <ShortsPlayer />
-    </>
-  );
+  return <ShortsPlayer />;
 }
