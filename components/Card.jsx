@@ -16,6 +16,13 @@ export default function Card({ m, rank = null }) {
 
   const href = m.type === 'tv' ? `/tv/${m.slug}/` : `/movie/${m.slug}/`;
   const langName = langByCode(m.lang)?.name;
+  const isTop = Number(m.rating) >= 7.8;
+
+  const openPreview = () => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('myflix:preview', { detail: m }));
+    }
+  };
 
   return (
     <div className={`card ${rank ? 'card-ranked' : ''}`}>
@@ -33,7 +40,7 @@ export default function Card({ m, rank = null }) {
             {m.type === 'tv' ? 'SERIES' : 'MOVIE'}
           </span>
           {m.rating > 0 && (
-            <span className="badge-rating">
+            <span className={`badge-rating ${isTop ? 'top-gem' : ''}`}>
               <StarIcon size={11} />
               {Number(m.rating).toFixed(1)}
             </span>
@@ -44,6 +51,16 @@ export default function Card({ m, rank = null }) {
             </div>
           </div>
         </Link>
+
+        <button
+          type="button"
+          className="card-info-btn"
+          aria-label="Quick preview"
+          title="Quick Preview"
+          onClick={openPreview}
+        >
+          i
+        </button>
 
         <button
           type="button"
