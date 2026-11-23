@@ -2,7 +2,10 @@ import Link from 'next/link';
 import HeroCarousel from '@/components/HeroCarousel';
 import CarouselRow from '@/components/CarouselRow';
 import ContinueWatching from '@/components/ContinueWatching';
+import MoodPicker from '@/components/MoodPicker';
 import Card from '@/components/Card';
+import SafeImage from '@/components/SafeImage';
+import { PlayIcon, StarIcon } from '@/components/Icons';
 import { all, trending, newest, topRated, byGenre, byType } from '@/lib/data';
 import { GENRES, LANGS } from '@/lib/constants';
 
@@ -16,13 +19,14 @@ export default function HomePage() {
   const bestRated = topRated(15);
   const action = byGenre('Action').slice(0, 15);
   const scifi = byGenre('Sci-Fi').slice(0, 15);
+  const thriller = byGenre('Thriller').slice(0, 15);
+  const horror = byGenre('Horror').slice(0, 15);
   const animation = byGenre('Animation').slice(0, 15);
-  const asian = items
-    .filter((m) => ['ko', 'ja', 'zh'].includes(m.lang))
-    .slice(0, 15);
-  const indian = items
-    .filter((m) => ['hi', 'bn', 'ta', 'te', 'ml', 'kn'].includes(m.lang))
-    .slice(0, 15);
+  const asian = items.filter((m) => ['ko', 'ja', 'zh'].includes(m.lang)).slice(0, 15);
+  const indian = items.filter((m) => ['hi', 'bn', 'ta', 'te', 'ml', 'kn'].includes(m.lang)).slice(0, 15);
+
+  const spotMovie = topRated(3, 'movie')[0];
+  const spotSeries = topRated(3, 'tv')[0];
 
   return (
     <>
@@ -43,6 +47,8 @@ export default function HomePage() {
       </div>
 
       <ContinueWatching />
+
+      <MoodPicker />
 
       <CarouselRow
         title="Top 10 Trending This Week"
@@ -70,47 +76,63 @@ export default function HomePage() {
         </section>
       )}
 
-      <CarouselRow
-        title="Popular TV Series"
-        items={series}
-        viewAllHref="/tv-shows/"
-      />
+      {(spotMovie || spotSeries) && (
+        <section className="spotlight-grid">
+          {spotMovie && (
+            <Link href={`/movie/${spotMovie.slug}/`} className="spotlight-card">
+              <SafeImage
+                src={spotMovie.backdrop || spotMovie.poster}
+                fallback="/nobackdrop.svg"
+                alt={spotMovie.title}
+                className="spotlight-bg"
+              />
+              <div className="spotlight-ov" />
+              <div className="spotlight-info">
+                <span className="pill pill-acc">FEATURED FILM</span>
+                <h3>{spotMovie.title}</h3>
+                <p>{spotMovie.overview}</p>
+                <div className="spotlight-meta">
+                  <span><StarIcon size={12} /> {Number(spotMovie.rating).toFixed(1)}</span>
+                  <span>{spotMovie.year}</span>
+                  <span className="spotlight-cta"><PlayIcon size={13} /> Watch Now</span>
+                </div>
+              </div>
+            </Link>
+          )}
 
-      <CarouselRow
-        title="Critically Acclaimed & Top Rated"
-        items={bestRated}
-        viewAllHref="/browse/?sort=rating"
-      />
+          {spotSeries && (
+            <Link href={`/tv/${spotSeries.slug}/`} className="spotlight-card">
+              <SafeImage
+                src={spotSeries.backdrop || spotSeries.poster}
+                fallback="/nobackdrop.svg"
+                alt={spotSeries.title}
+                className="spotlight-bg"
+              />
+              <div className="spotlight-ov" />
+              <div className="spotlight-info">
+                <span className="pill pill-gold">BINGE-WORTHY SERIES</span>
+                <h3>{spotSeries.title}</h3>
+                <p>{spotSeries.overview}</p>
+                <div className="spotlight-meta">
+                  <span><StarIcon size={12} /> {Number(spotSeries.rating).toFixed(1)}</span>
+                  <span>{spotSeries.year}</span>
+                  <span className="spotlight-cta"><PlayIcon size={13} /> Stream Episodes</span>
+                </div>
+              </div>
+            </Link>
+          )}
+        </section>
+      )}
 
-      <CarouselRow
-        title="Action & High-Octane"
-        items={action}
-        viewAllHref="/genre/action/"
-      />
-
-      <CarouselRow
-        title="Sci-Fi & Mind-Bending Worlds"
-        items={scifi}
-        viewAllHref="/genre/sci-fi/"
-      />
-
-      <CarouselRow
-        title="Anime & Animation"
-        items={animation}
-        viewAllHref="/genre/animation/"
-      />
-
-      <CarouselRow
-        title="K-Drama & Asian Cinema"
-        items={asian}
-        viewAllHref="/language/korean/"
-      />
-
-      <CarouselRow
-        title="Indian & South Asian Hits"
-        items={indian}
-        viewAllHref="/language/hindi/"
-      />
+      <CarouselRow title="Popular TV Series" items={series} viewAllHref="/tv-shows/" />
+      <CarouselRow title="Critically Acclaimed & Top Rated" items={bestRated} viewAllHref="/browse/?sort=rating" />
+      <CarouselRow title="Action & High-Octane" items={action} viewAllHref="/genre/action/" />
+      <CarouselRow title="Sci-Fi & Mind-Bending Worlds" items={scifi} viewAllHref="/genre/sci-fi/" />
+      <CarouselRow title="Crime, Mystery & Thrillers" items={thriller} viewAllHref="/genre/thriller/" />
+      <CarouselRow title="Spine-Chilling Horror" items={horror} viewAllHref="/genre/horror/" />
+      <CarouselRow title="Anime & Animation" items={animation} viewAllHref="/genre/animation/" />
+      <CarouselRow title="K-Drama & Asian Cinema" items={asian} viewAllHref="/language/korean/" />
+      <CarouselRow title="Indian & South Asian Hits" items={indian} viewAllHref="/language/hindi/" />
     </>
   );
 }
