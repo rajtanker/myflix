@@ -1,4 +1,5 @@
 'use client';
+
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import SafeImage from '@/components/SafeImage';
@@ -14,7 +15,13 @@ export default function Card({ m, rank = null }) {
     return subscribeStorage(() => setSaved(isInWatchlist(m.id)));
   }, [m.id]);
 
-  const href = m.type === 'tv' ? `/tv/${m.slug}/` : `/movie/${m.slug}/`;
+  const href =
+    m.live || !m.slug
+      ? `/watch/?type=${m.type || 'movie'}&id=${m.tmdb}`
+      : m.type === 'tv'
+      ? `/tv/${m.slug}/`
+      : `/movie/${m.slug}/`;
+
   const langName = langByCode(m.lang)?.name;
   const isTop = Number(m.rating) >= 7.8;
 
