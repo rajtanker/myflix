@@ -9,7 +9,7 @@ import SafeImage from '@/components/SafeImage';
 import { GenreIcon, PlayIcon, StarIcon, CalendarIcon } from '@/components/Icons';
 import { all, trending, newest, topRated, upcoming, anime, news, byGenre, byType } from '@/lib/data';
 import { GENRES, LANGS } from '@/lib/constants';
-
+import { COLLECTIONS } from '@/lib/collections';
 export default function HomePage() {
   const items = all();
   const trendList = trending(15);
@@ -50,7 +50,22 @@ export default function HomePage() {
       </div>
 
       <ContinueWatching />
-
+<section className="growth-strip">
+        <div className="sec-head" style={{ marginTop: 14 }}>
+          <h2 className="sec-title"><span className="sec-bar" />Top Curated Lists &amp; Quiz</h2>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Link href="/quiz/" className="btn btn-primary btn-sm">Play Movie Quiz</Link>
+            <Link href="/collections/" className="sec-more">All Lists →</Link>
+          </div>
+        </div>
+        <div className="chips-scroll">
+          {COLLECTIONS.map((c) => (
+            <Link key={c.slug} href={`/collections/${c.slug}/`} className="chip">
+              {c.short}
+            </Link>
+          ))}
+        </div>
+      </section>
       <PersonalizedSection />
 
       <MoodPicker />
