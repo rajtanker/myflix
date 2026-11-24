@@ -64,4 +64,14 @@ const mergedClips = Array.from(clipsMap.values()).slice(0, 800);
 fs.mkdirSync(path.dirname(INDEX_FILE), { recursive: true });
 fs.writeFileSync(INDEX_FILE, JSON.stringify(slimIndex));
 fs.writeFileSync(CLIPS_FILE, JSON.stringify(mergedClips));
+
+const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://myflix-7uh.pages.dev').replace(/\/$/, '');
+const esc = (s = '') => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const rssItems = items.slice(0, 50).map((m) => {
+  const link = `${SITE_URL}/${m.type === 'tv' ? 'tv' : 'movie'}/${m.slug}/`;
+  return `<item><title>${esc(`${m.title} (${m.year})`)}</title><link>${esc(link)}</link><guid>${esc(link)}</guid><description>${esc(m.overview || '')}</description></item>`;
+}).join('');
+const rssXml = `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>MyFlix — Latest Movies &amp; Series</title><link>${esc(SITE_URL)}</link><description>Latest trending movies, series, and anime.</description>${rssItems}</channel></rss>`;
+fs.writeFileSync(path.join(process.cwd(), 'public', 'feed.xml'), rssXml);
+
 console.log(`Synced public/db.json (${slimIndex.length} titles) & public/clips.json (${mergedClips.length} shorts).`);
