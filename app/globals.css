@@ -2256,3 +2256,119 @@ main.main-container {
   .reel-overlay-info { right: 68px; }
   .reel-act-btn { background: rgba(7, 8, 13, 0.72); backdrop-filter: blur(8px); }
 }
+/* Collections, WhereToWatch, SocialShareBar, FAQ & Quiz */
+.wtw-box {
+  margin-top: 22px;
+  padding: 16px 18px;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+.wtw-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+.wtw-head span { font-size: 12px; color: var(--dim); }
+.wtw-list { display: flex; flex-wrap: wrap; gap: 10px; }
+.wtw-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.wtw-pill:hover { border-color: var(--acc); }
+.wtw-pill img { width: 22px; height: 22px; border-radius: 5px; }
+
+.share-bar {
+  margin: 18px 0;
+  padding: 14px 16px;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.share-bar-label { display: inline-flex; align-items: center; gap: 7px; font-size: 13.5px; font-weight: 700; color: var(--dim); }
+.share-bar-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.share-pill {
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #fff;
+  border: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.share-pill.wa { background: #16a34a; }
+.share-pill.tg { background: #0284c7; }
+.share-pill.fb { background: #2563eb; }
+.share-pill.tw { background: #1f2937; border: 1px solid var(--line-strong); }
+.share-pill.copy { background: var(--card); border: 1px solid var(--line-strong); }
+
+.faq-sec { margin-top: 26px; }
+.faq-list { display: flex; flex-direction: column; gap: 10px; }
+.faq-item {
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px 18px;
+}
+.faq-item summary { font-weight: 700; font-size: 14.5px; cursor: pointer; list-style: none; }
+.faq-item p { margin-top: 10px; font-size: 13.5px; color: #c7ccdc; line-height: 1.65; }
+
+.col-hub-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; }
+.col-hub-card {
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: transform 0.2s, border-color 0.2s;
+}
+.col-hub-card:hover { transform: translateY(-4px); border-color: var(--acc); }
+.col-hub-card h2 { font-size: 18px; line-height: 1.25; }
+.col-hub-card p { font-size: 13.5px; color: var(--dim); flex: 1; }
+.col-hub-cta { font-size: 13px; font-weight: 700; color: var(--acc-hover); }
+
+.quiz-card {
+  max-width: 680px;
+  margin: 18px auto 40px;
+  background: var(--bg-elev);
+  border: 1px solid var(--line-strong);
+  border-radius: 20px;
+  padding: 26px;
+}
+.quiz-top { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--dim); margin-bottom: 14px; }
+.quiz-clues { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.quiz-plot { font-size: 15px; line-height: 1.65; color: #d8dcea; margin-bottom: 20px; }
+.quiz-options { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.quiz-opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  background: var(--card);
+  border: 1px solid var(--line);
+  color: var(--txt);
+  padding: 10px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.quiz-opt:hover { border-color: var(--line-strong); }
+.quiz-opt img { width: 44px; height: 64px; object-fit: cover; border-radius: 7px; flex-shrink: 0; }
+.quiz-opt strong { display: block; font-size: 13.5px; }
+.quiz-opt span { font-size: 11.5px; color: var(--dim); }
+.quiz-opt.right { border-color: #22c55e; background: rgba(34, 197, 94, 0.14); }
+.quiz-opt.wrong { border-color: #ef4444; background: rgba(239, 68, 68, 0.14); }
+@media (max-width: 600px) { .quiz-options { grid-template-columns: 1fr; } }
