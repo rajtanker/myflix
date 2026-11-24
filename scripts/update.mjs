@@ -119,6 +119,7 @@ async function grab(endpoint, type, extra = {}, opts = {}) {
       trailer: '',
       clips: [],
       reviews: [],
+      providers: [],
       imdb: '',
       cast: [],
       seasons: type === 'tv' ? 1 : 0,
@@ -174,7 +175,7 @@ console.log(`Enriching ${toEnrich.length} titles with reviews, clips, cast & sea
 async function enrichOne(m) {
   const endpoint = m.type === 'tv' ? 'tv' : 'movie';
   const d = await get(
-    `${BASE}/${endpoint}/${m.tmdb}?api_key=${KEY}&language=en-US&append_to_response=credits,videos,reviews,external_ids`
+    `${BASE}/${endpoint}/${m.tmdb}?api_key=${KEY}&language=en-US&append_to_response=credits,videos,reviews,external_ids,watch/providers`
   );
   if (!d) return;
 
@@ -184,6 +185,9 @@ async function enrichOne(m) {
   m.tagline = d.tagline || '';
   m.imdb = d.external_ids?.imdb_id || d.imdb_id || '';
   m.cast = (d.credits?.cast || []).slice(0, 8).map((c) => c.name).filter(Boolean);
+  m.providers = (d['watch/providers']?.results?.US?.flatrate || d['watch/providers']?.results?.IN?.flatrate || [])
+    .slice(0, 6)
+    .map((p) => ({ name: p.provider_name, logo: p.logo_path }));
 
   if (m.type === 'movie') {
     m.runtime = d.runtime || 0;
