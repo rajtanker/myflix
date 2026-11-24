@@ -10,7 +10,9 @@ import { BannerAd, NativeAd } from '@/components/AdBanner';
 import { GenreIcon, StarIcon } from '@/components/Icons';
 import { MOVIE_SERVERS, TV_SERVERS } from '@/lib/config';
 import { genreNameToSlug, langByCode } from '@/lib/constants';
-
+import WhereToWatch from '@/components/WhereToWatch';
+import SocialShareBar from '@/components/SocialShareBar';
+import MovieFAQ from '@/components/MovieFAQ';
 export default function WatchClient() {
   const searchParams = useSearchParams();
   const type = searchParams.get('type') === 'tv' ? 'tv' : 'movie';
@@ -163,7 +165,9 @@ export default function WatchClient() {
         scriptUrl="https://bancadeltempoidea.org/21/bef6ed04dae55e2de1bae450e9965634"
         containerId="bef6ed04dae55e2de1bae450e9965634"
       />
-
+<WhereToWatch item={m} />
+      <SocialShareBar title={`${m.title} (${m.year})`} path={m.type === 'tv' ? `/tv/${m.slug}/` : `/movie/${m.slug}/`} />
+      <MovieFAQ item={m} />
       <ReviewsSection movieId={m.id} internetReviews={m.reviews || []} />
 
       {relList.length > 0 && (
