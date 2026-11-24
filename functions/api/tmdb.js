@@ -158,7 +158,7 @@ export async function onRequestGet({ request, env }) {
       if (!id) return jsonRes({ error: 'MISSING_ID' }, 400);
 
       const r = await fetch(
-        `${BASE}/${type}/${encodeURIComponent(id)}?api_key=${key}&language=en-US&append_to_response=credits,videos,reviews,recommendations,external_ids`
+        `${BASE}/${type}/${encodeURIComponent(id)}?api_key=${key}&language=en-US&append_to_response=credits,videos,reviews,recommendations,external_ids,watch/providers`
       );
       if (!r.ok) return jsonRes({ error: 'NOT_FOUND' }, 404);
       const d = await r.json();
@@ -167,6 +167,9 @@ export async function onRequestGet({ request, env }) {
       item.tagline = d.tagline || '';
       item.imdb = d.external_ids?.imdb_id || d.imdb_id || '';
       item.cast = (d.credits?.cast || []).slice(0, 8).map((c) => c.name).filter(Boolean);
+      item.providers = (d['watch/providers']?.results?.US?.flatrate || d['watch/providers']?.results?.IN?.flatrate || [])
+        .slice(0, 6)
+        .map((p) => ({ name: p.provider_name, logo: p.logo_path }));
 
       if (type === 'movie') {
         item.runtime = d.runtime || 0;
