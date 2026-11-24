@@ -162,6 +162,8 @@ export default function Header() {
               {moreOpen && (
                 <div className="more-menu">
                   <Link href="/browse/">{t('browse')}</Link>
+                  <Link href="/collections/">Top Collections</Link>
+                  <Link href="/quiz/">Movie Quiz Game</Link>
                   <Link href="/upcoming/">{t('upcoming')}</Link>
                   <Link href="/news/">{t('news')}</Link>
                   <Link href="/watchlist/">
