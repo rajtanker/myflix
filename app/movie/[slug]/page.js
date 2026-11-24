@@ -9,7 +9,9 @@ import { GenreIcon, StarIcon } from '@/components/Icons';
 import { all, bySlug, related } from '@/lib/data';
 import { MOVIE_SERVERS, SITE } from '@/lib/config';
 import { genreNameToSlug, langByCode } from '@/lib/constants';
-
+import WhereToWatch from '@/components/WhereToWatch';
+import SocialShareBar from '@/components/SocialShareBar';
+import MovieFAQ from '@/components/MovieFAQ';
 export const dynamicParams = false;
 
 export function generateStaticParams() {
@@ -163,7 +165,9 @@ export default function MoviePage({ params }) {
         scriptUrl="https://bancadeltempoidea.org/21/bef6ed04dae55e2de1bae450e9965634"
         containerId="bef6ed04dae55e2de1bae450e9965634"
       />
-
+<WhereToWatch item={m} />
+      <SocialShareBar title={`${m.title} (${m.year})`} path={m.type === 'tv' ? `/tv/${m.slug}/` : `/movie/${m.slug}/`} />
+      <MovieFAQ item={m} />
       <ReviewsSection movieId={m.id} internetReviews={m.reviews || []} />
 
       {relList.length > 0 && (
