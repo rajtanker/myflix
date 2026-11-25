@@ -68,17 +68,21 @@ fs.writeFileSync(CLIPS_FILE, JSON.stringify(mergedClips));
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://myflix-7uh.pages.dev').replace(/\/$/, '');
 const esc = (s = '') => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-const rssItems = items.slice(0, 15).map((m) => {
-  const link = `${SITE_URL}/${m.type === 'tv' ? 'tv' : 'movie'}/${m.slug}/`;
-  const img = m.backdrop || m.poster || `${SITE_URL}/nobackdrop.svg`;
-  const genres = (m.genres || []).slice(0, 3).map((g) => `#${g.replace(/[^a-zA-Z0-9]/g, '')}`).join(' ');
-  const ratingStr = m.rating > 0 ? `★ ${Number(m.rating).toFixed(1)}/10` : 'Trending';
-  const postTitle = `${m.title} (${m.year}) — ${ratingStr} | Watch Trailer & Details`;
-  const postDesc = `${(m.overview || 'Discover cast, reviews, and streaming details.').slice(0, 200)}... ${genres} #Movies #Cinema #MyFlix`;
-  const pubDate = new Date(m.added || Date.now()).toUTCString();
+const rssItems = items
+  .filter((m) => m.poster || m.backdrop)
+  .slice(0, 15)
+  .map((m) => {
+    const link = `${SITE_URL}/${m.type === 'tv' ? 'tv' : 'movie'}/${m.slug}/`;
+    const img = m.poster || m.backdrop;
+    const genres = (m.genres || []).slice(0, 3).map((g) => `#${g.replace(/[^a-zA-Z0-9]/g, '')}`).join(' ');
+    const ratingStr = m.rating > 0 ? `★ ${Number(m.rating).toFixed(1)}` : 'Trending';
+    const rawTitle = `${m.title} (${m.year}) • ${ratingStr}`;
+    const postTitle = rawTitle.length > 95 ? rawTitle.slice(0, 92) + '...' : rawTitle;
+    const postDesc = `${(m.overview || 'Discover trailer, cast, reviews & streaming guide.').slice(0, 240)}... ${genres} #Movies #Cinema #MustWatch`;
+    const pubDate = new Date(m.added || Date.now()).toUTCString();
 
-  return `<item><title>${esc(postTitle)}</title><link>${esc(link)}</link><guid isPermaLink="true">${esc(link)}</guid><pubDate>${esc(pubDate)}</pubDate><enclosure url="${esc(img)}" length="0" type="image/jpeg"/><media:content url="${esc(img)}" medium="image"/><description>${esc(postDesc)}</description></item>`;
-}).join('');
+    return `<item><title>${esc(postTitle)}</title><link>${esc(link)}</link><guid isPermaLink="true">${esc(link)}</guid><pubDate>${esc(pubDate)}</pubDate><enclosure url="${esc(img)}" length="0" type="image/jpeg"/><media:content url="${esc(img)}" medium="image"/><description>${esc(postDesc)}</description></item>`;
+  }).join('');
 
 const rssXml = `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/"><channel><title>MyFlix — Trending Movies, Series &amp; Anime</title><link>${esc(SITE_URL)}</link><description>Daily trending movies, TV shows, ratings, trailers &amp; quizzes.</description>${rssItems}</channel></rss>`;
 fs.writeFileSync(path.join(process.cwd(), 'public', 'feed.xml'), rssXml);
