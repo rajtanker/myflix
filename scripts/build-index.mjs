@@ -70,7 +70,7 @@ const esc = (s = '') => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').r
 
 const rssItems = items
   .filter((m) => m.poster || m.backdrop)
-  .slice(0, 15)
+  .slice(0, 70)
   .map((m) => {
     const link = `${SITE_URL}/${m.type === 'tv' ? 'tv' : 'movie'}/${m.slug}/`;
     const img = m.poster || m.backdrop;
