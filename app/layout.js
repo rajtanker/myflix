@@ -37,10 +37,11 @@ export const metadata = {
     description: SITE.description,
   },
   robots: { index: true, follow: true },
-};
-other: {
+  other: {
     'p:domain_verify': '00353d016910c4dd1e35b859d4a41bfe',
   },
+};
+
 export default function RootLayout({ children }) {
   const baseUrl = SITE.url.replace(/\/$/, '');
   const siteJsonLd = {
