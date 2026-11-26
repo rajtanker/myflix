@@ -5,7 +5,7 @@ import AppBanner from '@/components/AppBanner';
 import Header from '@/components/Header';
 import Toast from '@/components/Toast';
 import FloatingUI from '@/components/FloatingUI';
-import { SITE } from '@/lib/config';
+import { SITE, ADS } from '@/lib/config';
 import { GENRES, LANGS } from '@/lib/constants';
 
 export const viewport = {
@@ -142,20 +142,24 @@ export default function RootLayout({ children }) {
         />
 
         {/* Adsterra Popunder */}
-        <Script
-          id="adsterra-popunder"
-          src="https://aarems.org/1/081f833d8b8a7f5b9bbf742fbb97ddbe"
-          strategy="afterInteractive"
-          data-cfasync="false"
-        />
+        {ADS.enabled && ADS.popunder && (
+          <Script
+            id="adsterra-popunder"
+            src="https://aarems.org/1/081f833d8b8a7f5b9bbf742fbb97ddbe"
+            strategy="afterInteractive"
+            data-cfasync="false"
+          />
+        )}
 
         {/* Adsterra Social Bar */}
-        <Script
-          id="adsterra-socialbar"
-          src="https://bancadeltempoidea.org/14/43f9d96c58e5ba16a80327bc033f8cf4"
-          strategy="afterInteractive"
-          data-cfasync="false"
-        />
+        {ADS.enabled && ADS.socialBar && (
+          <Script
+            id="adsterra-socialbar"
+            src="https://bancadeltempoidea.org/14/43f9d96c58e5ba16a80327bc033f8cf4"
+            strategy="afterInteractive"
+            data-cfasync="false"
+          />
+        )}
       </body>
     </html>
   );
