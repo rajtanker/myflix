@@ -1,9 +1,10 @@
 'use client';
 import { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
+import { ADS } from '@/lib/config';
 
 export function BannerAd({ adKey, width = 300, height = 250, scriptSrc }) {
-  if (!adKey || !scriptSrc) return null;
+  if (!ADS.enabled || !ADS.banners || !adKey || !scriptSrc) return null;
 
   const srcDoc = `<!DOCTYPE html>
 <html>
@@ -39,9 +40,10 @@ export function NativeAd({ scriptUrl, containerId }) {
   const containerRef = useRef(null);
   const scriptRef = useRef(null);
   const pathname = usePathname();
+  const active = ADS.enabled && ADS.banners;
 
   useEffect(() => {
-    if (!scriptUrl || !containerId || !containerRef.current || !scriptRef.current) return;
+    if (!active || !scriptUrl || !containerId || !containerRef.current || !scriptRef.current) return;
     containerRef.current.innerHTML = '';
     scriptRef.current.innerHTML = '';
 
@@ -55,9 +57,9 @@ export function NativeAd({ scriptUrl, containerId }) {
       if (containerRef.current) containerRef.current.innerHTML = '';
       if (scriptRef.current) scriptRef.current.innerHTML = '';
     };
-  }, [scriptUrl, containerId, pathname]);
+  }, [active, scriptUrl, containerId, pathname]);
 
-  if (!scriptUrl || !containerId) return null;
+  if (!active || !scriptUrl || !containerId) return null;
 
   return (
     <div className="ad-slot">
