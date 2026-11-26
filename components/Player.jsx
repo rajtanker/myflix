@@ -25,19 +25,20 @@ const MAX_AUTO = 6;
 const DEAD_KEY = 'myflix.deadservers';
 
 const NX = 'https://nxsha.space/embed';
+const NXQ = '?lang=en&autoplay=true&sub=en';
 
 const SERVERS = [
-  { name: 'Nexus', hint: 'HD', tier: 1, m: `${NX}/movie/{tmdb}?lang=en&autoplay=true&sub=en`, t: `${NX}/tv/{tmdb}/{s}/{e}?lang=en&autoplay=true&sub=en` },
-  { name: 'Nitro', hint: 'Multi', tier: 1, m: `${NX}/movie/{tmdb}?server=nitro&lang=en&autoplay=true&sub=en`, t: `${NX}/tv/{tmdb}/{s}/{e}?server=nitro&lang=en&autoplay=true&sub=en` },
-  { name: 'Mahalala', hint: 'Multi', tier: 1, m: `${NX}/movie/{tmdb}?server=mahalala&lang=en&autoplay=true&sub=en`, t: `${NX}/tv/{tmdb}/{s}/{e}?server=mahalala&lang=en&autoplay=true&sub=en` },
-  { name: 'CastVid', hint: 'Multi', tier: 1, m: `${NX}/movie/{tmdb}?server=castvid&lang=en&autoplay=true&sub=en`, t: `${NX}/tv/{tmdb}/{s}/{e}?server=castvid&lang=en&autoplay=true&sub=en` },
-  { name: 'VidBo', hint: 'Multi', tier: 1, m: `${NX}/movie/{tmdb}?server=vidbo&lang=en&autoplay=true&sub=en`, t: `${NX}/tv/{tmdb}/{s}/{e}?server=vidbo&lang=en&autoplay=true&sub=en` },
-  { name: 'StremFx', hint: 'Alt', tier: 1, m: `${NX}/movie/{tmdb}?server=stremfx&lang=en&autoplay=true&sub=en`, t: `${NX}/tv/{tmdb}/{s}/{e}?server=stremfx&lang=en&autoplay=true&sub=en` },
-  { name: 'Astra', hint: 'Multi', tier: 2, m: 'https://player-4aq.pages.dev/embed/movie/{tmdb}?autoPlay=true', t: 'https://player-4aq.pages.dev/embed/tv/{tmdb}/{s}/{e}?autoPlay=true' },
-  { name: 'VidSrc', hint: 'HD', tier: 2, m: 'https://vidsrc.sh/embed/movie/{tmdb}', t: 'https://vidsrc.sh/embed/tv/{tmdb}/{s}/{e}' },
-  { name: 'SuperEmbed', hint: 'Multi', tier: 2, m: 'https://multiembed.mov/?video_id={tmdb}&tmdb=1', t: 'https://multiembed.mov/?video_id={tmdb}&tmdb=1&s={s}&e={e}' },
-  { name: 'VidLink', hint: '1080p', tier: 2, m: 'https://vidlink.pro/movie/{tmdb}', t: 'https://vidlink.pro/tv/{tmdb}/{s}/{e}' },
-  { name: 'Videasy', hint: 'Fast', tier: 2, m: 'https://player.videasy.net/movie/{tmdb}', t: 'https://player.videasy.net/tv/{tmdb}/{s}/{e}' },
+  { name: 'VidLink Pro', hint: '1080p', m: 'https://vidlink.pro/movie/{tmdb}', t: 'https://vidlink.pro/tv/{tmdb}/{s}/{e}' },
+  { name: 'MultiEmbed Mirror', hint: 'Multi', m: 'https://multiembed.mov/?video_id={tmdb}&tmdb=1', t: 'https://multiembed.mov/?video_id={tmdb}&tmdb=1&s={s}&e={e}' },
+  { name: 'Nexus HD', hint: 'HD', m: `${NX}/movie/{tmdb}${NXQ}`, t: `${NX}/tv/{tmdb}/{s}/{e}${NXQ}` },
+  { name: 'Nitro Multi', hint: 'Multi', m: `${NX}/movie/{tmdb}?server=nitro&lang=en&autoplay=true&sub=en`, t: `${NX}/tv/{tmdb}/{s}/{e}?server=nitro&lang=en&autoplay=true&sub=en` },
+  { name: 'Mahalala Multi', hint: 'Multi', m: `${NX}/movie/{tmdb}?server=mahalala&lang=en&autoplay=true&sub=en`, t: `${NX}/tv/{tmdb}/{s}/{e}?server=mahalala&lang=en&autoplay=true&sub=en` },
+  { name: 'CastVid Multi', hint: 'Multi', m: `${NX}/movie/{tmdb}?server=castvid&lang=en&autoplay=true&sub=en`, t: `${NX}/tv/{tmdb}/{s}/{e}?server=castvid&lang=en&autoplay=true&sub=en` },
+  { name: 'VidHindi', hint: 'Hindi', m: `${NX}/movie/{tmdb}?server=vidhindi&lang=en&autoplay=true&sub=en`, t: `${NX}/tv/{tmdb}/{s}/{e}?server=vidhindi&lang=en&autoplay=true&sub=en` },
+  { name: 'VidBo', hint: 'Multi', m: `${NX}/movie/{tmdb}?server=vidbo&lang=en&autoplay=true&sub=en`, t: `${NX}/tv/{tmdb}/{s}/{e}?server=vidbo&lang=en&autoplay=true&sub=en` },
+  { name: 'StremFx', hint: 'Alt', m: `${NX}/movie/{tmdb}?server=stremfx&lang=en&autoplay=true&sub=en`, t: `${NX}/tv/{tmdb}/{s}/{e}?server=stremfx&lang=en&autoplay=true&sub=en` },
+  { name: 'VidSrc', hint: 'HD', m: 'https://vidsrc.sh/embed/movie/{tmdb}', t: 'https://vidsrc.sh/embed/tv/{tmdb}/{s}/{e}' },
+  { name: 'Astra', hint: 'Multi', m: 'https://player-4aq.pages.dev/embed/movie/{tmdb}?autoPlay=true', t: 'https://player-4aq.pages.dev/embed/tv/{tmdb}/{s}/{e}?autoPlay=true' },
 ];
 
 function readDead() {
@@ -104,36 +105,23 @@ export default function Player({ item, servers = [] }) {
       .map((s) => ({
         name: s.name || 'Custom',
         hint: s.hint || '',
-        tier: 0,
         m: s.m || s.tpl,
         t: s.t || s.tpl,
       }));
 
-    const base = SERVERS.map((s) => ({
-      name: s.name,
-      hint: s.hint,
-      tier: s.tier,
-      tpl: item.type === 'tv' ? s.t : s.m,
-    })).filter((s) => Boolean(s.tpl));
+    const base = SERVERS.map((s) => ({ name: s.name, hint: s.hint, tpl: item.type === 'tv' ? s.t : s.m })).filter(
+      (s) => Boolean(s.tpl)
+    );
 
     const merged = [...extra.map((e) => ({ ...e, tpl: item.type === 'tv' ? e.t : e.m })), ...base];
     const seen = new Set();
-    const unique = merged.filter((s) => {
+    return merged.filter((s) => {
       if (!s.tpl || seen.has(s.name)) return false;
       seen.add(s.name);
       return true;
     });
-
-    const dead = readDead();
-    return unique.sort((a, b) => {
-      const aD = dead.includes(a.name) ? 1 : 0;
-      const bD = dead.includes(b.name) ? 1 : 0;
-      if (aD !== bD) return aD - bD;
-      return a.tier - b.tier;
-    });
   }, [servers, item.type]);
 
-  /* স্টেবল কী — অ্যারের রেফারেন্স বদলালেও ইফেক্ট রি-রান হবে না */
   const listKey = list.map((s) => s.name).join('|');
   const listRef = useRef(list);
   listRef.current = list;
@@ -153,9 +141,19 @@ export default function Player({ item, servers = [] }) {
   const autoRef = useRef(0);
   const runRef = useRef(0);
   const loadedRef = useRef(false);
-  const manualRef = useRef(false);
 
   const active = list.find((s) => s.name === activeName) || null;
+
+  /* working first, untested middle, failed last — order within a group is preserved */
+  const ordered = useMemo(() => {
+    const score = (n) => {
+      const st = probe[n];
+      if (st === 'ok') return 0;
+      if (st === 'fail') return 2;
+      return 1;
+    };
+    return [...list].sort((a, b) => score(a.name) - score(b.name));
+  }, [list, probe]);
 
   const markDead = useCallback((name) => {
     if (!name) return;
@@ -204,13 +202,12 @@ export default function Player({ item, servers = [] }) {
   const pageEnd = Math.min(totalEps, (epPage + 1) * EP_PAGE_SIZE);
   const epNumbers = Array.from({ length: pageEnd - pageStart + 1 }, (_, i) => pageStart + i);
 
-  /* একবারই চলে: প্যারালাল প্রোব → প্রথম সাড়াদায়ী সার্ভার বাছা */
+  /* parallel probe, once per title/episode */
   useEffect(() => {
     runRef.current += 1;
     const run = runRef.current;
     autoRef.current = 0;
     loadedRef.current = false;
-    manualRef.current = false;
     setAutoTries(0);
     setActiveName('');
     setPhase('checking');
@@ -255,7 +252,7 @@ export default function Player({ item, servers = [] }) {
     return fill(active.tpl, item.tmdb, season, ep);
   }, [active, item.tmdb, season, ep]);
 
-  /* টাইমার — শুধু লোড শেষ না হলে ফায়ার করবে */
+  /* fallback timer — never fires once the iframe has loaded */
   useEffect(() => {
     clearTimeout(timerRef.current);
     if (!currentUrl || !activeName) return;
@@ -296,7 +293,6 @@ export default function Player({ item, servers = [] }) {
   };
 
   const pickServer = (name) => {
-    manualRef.current = true;
     autoRef.current = 0;
     loadedRef.current = false;
     setAutoTries(0);
@@ -305,10 +301,10 @@ export default function Player({ item, servers = [] }) {
   };
 
   const nextSource = () => {
-    const curIdx = list.findIndex((s) => s.name === activeName);
-    const next = list.slice(curIdx + 1).find((s) => s.name !== activeName);
+    const curIdx = ordered.findIndex((s) => s.name === activeName);
+    const next = ordered.slice(curIdx + 1).find((s) => s.name !== activeName);
     if (next) pickServer(next.name);
-    else showToast('শেষ সার্ভার — উপরের তালিকা থেকে বেছে নিন');
+    else showToast('Last server — pick one from the list above');
   };
 
   const retryAll = () => {
@@ -316,9 +312,10 @@ export default function Player({ item, servers = [] }) {
     autoRef.current = 0;
     loadedRef.current = false;
     setAutoTries(0);
-    const first = list[0]?.name;
+    setProbe({});
+    const first = ordered[0]?.name;
     if (first) {
-      setActiveName(first === activeName ? list[1]?.name || first : first);
+      setActiveName(first === activeName ? ordered[1]?.name || first : first);
       setPhase('loading');
     }
   };
@@ -415,8 +412,8 @@ export default function Player({ item, servers = [] }) {
               }}
             >
               {phase === 'checking'
-                ? 'সার্ভার চেক করা হচ্ছে…'
-                : `${active?.name} লোড হচ্ছে… (${autoTries}/${MAX_AUTO})`}
+                ? 'Checking servers…'
+                : `Loading ${active?.name}… (${autoTries}/${MAX_AUTO})`}
             </div>
           )}
 
@@ -435,16 +432,16 @@ export default function Player({ item, servers = [] }) {
                 padding: 20,
               }}
             >
-              <strong style={{ fontSize: 15 }}>কোনো সার্ভার কাজ করছে না</strong>
+              <strong style={{ fontSize: 15 }}>No working server</strong>
               <span style={{ fontSize: 12, opacity: 0.72, maxWidth: 340 }}>
-                মুভিটি রিলিজ না হয়ে থাকলে এখনো কোথাও পাওয়া যাবে না। নাহলে আবার চেষ্টা করুন বা নিচের তালিকা থেকে অন্যটা বেছে নিন।
+                If the title has not been released yet, no source will work. Otherwise retry or pick another server below.
               </span>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button type="button" className="srv-btn" onClick={retryAll}>
-                  আবার চেষ্টা
+                  Retry
                 </button>
                 <button type="button" className="srv-btn" onClick={nextSource}>
-                  পরের সার্ভার
+                  Next server
                 </button>
               </div>
             </div>
@@ -454,17 +451,26 @@ export default function Player({ item, servers = [] }) {
         <div className="player-toolbar">
           <div className="server-group">
             <span className="server-label">Servers:</span>
-            {list.map((s) => {
+            {ordered.map((s) => {
               const st = probe[s.name];
-              const dim = st === 'fail' || deadList.includes(s.name);
+              const bad = st === 'fail' || (st !== 'ok' && deadList.includes(s.name));
+              const good = st === 'ok';
+              const isActive = s.name === activeName;
+
+              const style = bad
+                ? { opacity: 0.32, filter: 'grayscale(1)', borderColor: '#3a3a44' }
+                : good
+                  ? { borderColor: '#2f9e5f', color: '#8fe3b0' }
+                  : undefined;
+
               return (
                 <button
                   key={s.name}
                   type="button"
-                  className={`srv-btn ${s.name === activeName ? 'on' : ''}`}
+                  className={`srv-btn ${isActive ? 'on' : ''}`}
                   onClick={() => pickServer(s.name)}
-                  style={dim && s.name !== activeName ? { opacity: 0.4 } : undefined}
-                  title={st === 'fail' ? 'এই সার্ভার সাড়া দিচ্ছে না' : s.hint}
+                  style={style}
+                  title={bad ? 'Not responding' : s.hint}
                 >
                   <span>{s.name}</span>
                   <span className="srv-hint">{s.hint}</span>
