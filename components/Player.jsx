@@ -23,23 +23,31 @@ const LOAD_TIMEOUT = 9000;
 const PROBE_TIMEOUT = 4500;
 const MAX_AUTO = 6;
 const DEAD_KEY = 'myflix.deadservers';
+const SPEED_KEY = 'myflix.serverspeed.v1';
 
 const NX = 'https://nxsha.space/embed';
 const NXQ = '?lang=en&autoplay=true&sub=en';
 
 const SERVERS = [
-  { name: 'VidHindi', hint: 'Hindi • Fast', m: `${NX}/movie/{tmdb}?server=vidhindi&lang=en&autoplay=true&sub=en`, t: `${NX}/tv/{tmdb}/{s}/{e}?server=vidhindi&lang=en&autoplay=true&sub=en` },
   { name: 'VidLink Pro', hint: '1080p', m: 'https://vidlink.pro/movie/{tmdb}', t: 'https://vidlink.pro/tv/{tmdb}/{s}/{e}' },
-  { name: 'MultiEmbed Mirror', hint: 'Multi', m: 'https://multiembed.mov/?video_id={tmdb}&tmdb=1', t: 'https://multiembed.mov/?video_id={tmdb}&tmdb=1&s={s}&e={e}' },
   { name: 'Nexus HD', hint: 'HD', m: `${NX}/movie/{tmdb}${NXQ}`, t: `${NX}/tv/{tmdb}/{s}/{e}${NXQ}` },
+  { name: 'VidHindi', hint: 'Hindi', m: `${NX}/movie/{tmdb}?server=vidhindi&lang=en&autoplay=true&sub=en`, t: `${NX}/tv/{tmdb}/{s}/{e}?server=vidhindi&lang=en&autoplay=true&sub=en` },
   { name: 'Nitro Multi', hint: 'Multi', m: `${NX}/movie/{tmdb}?server=nitro&lang=en&autoplay=true&sub=en`, t: `${NX}/tv/{tmdb}/{s}/{e}?server=nitro&lang=en&autoplay=true&sub=en` },
+  { name: 'MultiEmbed Mirror', hint: 'Multi', m: 'https://multiembed.mov/?video_id={tmdb}&tmdb=1', t: 'https://multiembed.mov/?video_id={tmdb}&tmdb=1&s={s}&e={e}' },
+  { name: 'VidSrc', hint: 'HD', m: 'https://vidsrc.sh/embed/movie/{tmdb}', t: 'https://vidsrc.sh/embed/tv/{tmdb}/{s}/{e}' },
   { name: 'Mahalala Multi', hint: 'Multi', m: `${NX}/movie/{tmdb}?server=mahalala&lang=en&autoplay=true&sub=en`, t: `${NX}/tv/{tmdb}/{s}/{e}?server=mahalala&lang=en&autoplay=true&sub=en` },
   { name: 'CastVid Multi', hint: 'Multi', m: `${NX}/movie/{tmdb}?server=castvid&lang=en&autoplay=true&sub=en`, t: `${NX}/tv/{tmdb}/{s}/{e}?server=castvid&lang=en&autoplay=true&sub=en` },
   { name: 'VidBo', hint: 'Multi', m: `${NX}/movie/{tmdb}?server=vidbo&lang=en&autoplay=true&sub=en`, t: `${NX}/tv/{tmdb}/{s}/{e}?server=vidbo&lang=en&autoplay=true&sub=en` },
   { name: 'StremFx', hint: 'Alt', m: `${NX}/movie/{tmdb}?server=stremfx&lang=en&autoplay=true&sub=en`, t: `${NX}/tv/{tmdb}/{s}/{e}?server=stremfx&lang=en&autoplay=true&sub=en` },
-  { name: 'VidSrc', hint: 'HD', m: 'https://vidsrc.sh/embed/movie/{tmdb}', t: 'https://vidsrc.sh/embed/tv/{tmdb}/{s}/{e}' },
-  { name: 'Astra', hint: 'Multi', m: 'https://player-4aq.pages.dev/embed/movie/{tmdb}?autoPlay=true', t: 'https://player-4aq.pages.dev/embed/tv/{tmdb}/{s}/{e}?autoPlay=true' },
 ];
+
+const BLOCKED_NAMES = new Set([
+  'Astra',
+  'VidSrc CC',
+  'Embed.su',
+  'AutoEmbed',
+  'VidSrc XYZ',
+]);
 
 function readDead() {
   if (typeof window === 'undefined') return [];
@@ -57,15 +65,36 @@ function writeDead(list) {
   } catch {}
 }
 
+function readSpeeds() {
+  if (typeof window === 'undefined') return {};
+  try {
+    const obj = JSON.parse(localStorage.getItem(SPEED_KEY) || '{}');
+    return obj && typeof obj === 'object' ? obj : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveSpeed(name, ms) {
+  if (typeof window === 'undefined' || !name) return;
+  try {
+    const cur = readSpeeds();
+    const prev = typeof cur[name] === 'number' ? cur[name] : ms;
+    cur[name] = Math.round(prev * 0.4 + ms * 0.6);
+    localStorage.setItem(SPEED_KEY, JSON.stringify(cur));
+  } catch {}
+}
+
 function preflight(url) {
   return new Promise((resolve) => {
     let done = false;
+    const t0 = typeof performance !== 'undefined' ? performance.now() : Date.now();
     const ctrl = new AbortController();
     const t = setTimeout(() => {
       if (done) return;
       done = true;
       ctrl.abort();
-      resolve(false);
+      resolve({ ok: false, ms: 99999 });
     }, PROBE_TIMEOUT);
 
     fetch(url, { mode: 'no-cors', cache: 'no-store', signal: ctrl.signal })
@@ -73,13 +102,14 @@ function preflight(url) {
         if (done) return;
         done = true;
         clearTimeout(t);
-        resolve(true);
+        const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+        resolve({ ok: true, ms: Math.max(10, Math.round(now - t0)) });
       })
       .catch(() => {
         if (done) return;
         done = true;
         clearTimeout(t);
-        resolve(false);
+        resolve({ ok: false, ms: 99999 });
       });
   });
 }
@@ -105,7 +135,7 @@ export default function Player({ item, servers = [] }) {
     })).filter((s) => Boolean(s.tpl));
 
     const extra = (servers || [])
-      .filter((s) => s && (s.tpl || s.m))
+      .filter((s) => s && !BLOCKED_NAMES.has(s.name) && (s.tpl || s.m))
       .map((s) => ({
         name: s.name || 'Custom',
         hint: s.hint || '',
@@ -116,7 +146,7 @@ export default function Player({ item, servers = [] }) {
     const merged = [...base, ...extra];
     const seen = new Set();
     return merged.filter((s) => {
-      if (!s.tpl || seen.has(s.name)) return false;
+      if (!s.tpl || BLOCKED_NAMES.has(s.name) || seen.has(s.name)) return false;
       seen.add(s.name);
       return true;
     });
@@ -129,6 +159,7 @@ export default function Player({ item, servers = [] }) {
   const [activeName, setActiveName] = useState('');
   const [phase, setPhase] = useState('checking');
   const [probe, setProbe] = useState({});
+  const [speedMap, setSpeedMap] = useState({});
   const [deadList, setDeadList] = useState([]);
   const [autoTries, setAutoTries] = useState(0);
   const [season, setSeason] = useState(seasons[0]?.s || 1);
@@ -142,27 +173,46 @@ export default function Player({ item, servers = [] }) {
   const autoRef = useRef(0);
   const runRef = useRef(0);
   const loadedRef = useRef(false);
+  const iframeStartRef = useRef(0);
 
   const active = list.find((s) => s.name === activeName) || null;
 
+  /* Dynamic speed ranking: fastest working servers first, VidHindi pinned at 2nd or 3rd if alive (hidden if failed) */
   const ordered = useMemo(() => {
-    const score = (n) => {
-      const st = probe[n];
-      if (n === 'VidHindi' && st === 'ok') return -1;
-      if (st === 'ok') return 0;
-      if (st === 'fail') return 2;
-      return 1;
+    const visible = list.filter((s) => {
+      if (s.name === 'VidHindi') {
+        const st = probe['VidHindi']?.status;
+        if (st === 'fail' || (st !== 'ok' && deadList.includes('VidHindi'))) return false;
+      }
+      return true;
+    });
+
+    const rankScore = (s) => {
+      const p = probe[s.name];
+      const hist = speedMap[s.name];
+      if (p?.status === 'fail' || (p?.status !== 'ok' && deadList.includes(s.name))) {
+        return 1000000;
+      }
+      if (p?.status === 'ok') {
+        return (p.ms || 500) + (typeof hist === 'number' ? hist * 0.35 : 0);
+      }
+      return typeof hist === 'number' ? 50000 + hist : 80000;
     };
-    return [...list]
-      .filter((s) => {
-        if (s.name === 'VidHindi') {
-          const st = probe['VidHindi'];
-          if (st === 'fail' || (st !== 'ok' && deadList.includes('VidHindi'))) return false;
-        }
-        return true;
-      })
-      .sort((a, b) => score(a.name) - score(b.name));
-  }, [list, probe, deadList]);
+
+    const others = visible.filter((s) => s.name !== 'VidHindi').sort((a, b) => rankScore(a) - rankScore(b));
+    const vidHindi = visible.find((s) => s.name === 'VidHindi');
+
+    if (!vidHindi) return others;
+
+    // Keep VidHindi strictly in 2nd or 3rd slot when working/available
+    const vhIdx = others.length >= 2 ? 2 : others.length >= 1 ? 1 : 0;
+    const out = [...others];
+    out.splice(vhIdx, 0, vidHindi);
+    return out;
+  }, [list, probe, speedMap, deadList]);
+
+  const orderedRef = useRef(ordered);
+  orderedRef.current = ordered;
 
   const markDead = useCallback((name) => {
     if (!name) return;
@@ -172,9 +222,11 @@ export default function Player({ item, servers = [] }) {
       writeDead(next);
       setDeadList(next);
     }
+    saveSpeed(name, 15000);
+    setSpeedMap(readSpeeds());
   }, []);
 
-  const markAlive = useCallback((name) => {
+  const markAlive = useCallback((name, ms = 300) => {
     if (!name) return;
     const d = readDead();
     if (d.includes(name)) {
@@ -182,10 +234,13 @@ export default function Player({ item, servers = [] }) {
       writeDead(next);
       setDeadList(next);
     }
+    saveSpeed(name, ms);
+    setSpeedMap(readSpeeds());
   }, []);
 
   useEffect(() => {
     setDeadList(readDead());
+    setSpeedMap(readSpeeds());
     if (item.type === 'tv' && typeof window !== 'undefined') {
       const m = window.location.hash.match(/^#s(\d+)e(\d+)$/i);
       if (m) {
@@ -234,6 +289,7 @@ export default function Player({ item, servers = [] }) {
   const pageEnd = Math.min(totalEps, (epPage + 1) * EP_PAGE_SIZE);
   const epNumbers = Array.from({ length: pageEnd - pageStart + 1 }, (_, i) => pageStart + i);
 
+  /* Fastest-First Race Probe: plays the VERY FIRST working fast server immediately! */
   useEffect(() => {
     runRef.current += 1;
     const run = runRef.current;
@@ -245,44 +301,63 @@ export default function Player({ item, servers = [] }) {
     setProbe({});
 
     let cancelled = false;
-    const current = listRef.current;
+    let pickedFastest = false;
+    let finishedCount = 0;
+    const current = [...listRef.current];
+    const deadNow = readDead();
+    const savedSpeeds = readSpeeds();
 
-    (async () => {
-      const results = await Promise.all(
-        current.map(async (s) => ({
-          name: s.name,
-          ok: await preflight(fill(s.tpl, item.tmdb, season, ep)),
-        }))
-      );
+    // Prioritize probing historically fastest non-dead servers first
+    const probeOrder = [...current].sort((a, b) => {
+      const aDead = deadNow.includes(a.name) ? 1 : 0;
+      const bDead = deadNow.includes(b.name) ? 1 : 0;
+      if (aDead !== bDead) return aDead - bDead;
+      return (savedSpeeds[a.name] ?? 9999) - (savedSpeeds[b.name] ?? 9999);
+    });
+
+    const okList = [];
+
+    probeOrder.forEach(async (s) => {
+      const res = await preflight(fill(s.tpl, item.tmdb, season, ep));
       if (cancelled || run !== runRef.current) return;
 
-      const map = {};
-      results.forEach((r) => {
-        map[r.name] = r.ok ? 'ok' : 'fail';
-        if (r.ok) markAlive(r.name);
-        else markDead(r.name);
-      });
-      setProbe(map);
+      finishedCount += 1;
+      setProbe((prev) => ({
+        ...prev,
+        [s.name]: { status: res.ok ? 'ok' : 'fail', ms: res.ms },
+      }));
 
-      const vidHindi = results.find((r) => r.name === 'VidHindi');
-      const good = results.filter((r) => r.ok).map((r) => r.name);
-      const deadNow = readDead();
+      if (res.ok) {
+        markAlive(s.name, res.ms);
+        okList.push({ name: s.name, ms: res.ms });
 
-      const target =
-        (vidHindi?.ok ? 'VidHindi' : '') ||
-        good.find((n) => !deadNow.includes(n)) ||
-        good[0] ||
-        current.find((s) => s.name !== 'VidHindi')?.name ||
-        current[0]?.name ||
-        '';
-
-      if (!target) {
-        setPhase('failed');
-        return;
+        // Immediately start the fastest non-VidHindi working server (unless only VidHindi works)
+        if (!pickedFastest && s.name !== 'VidHindi' && !deadNow.includes(s.name)) {
+          pickedFastest = true;
+          setActiveName(s.name);
+          setPhase('loading');
+        }
+      } else {
+        markDead(s.name);
       }
-      setActiveName(target);
-      setPhase('loading');
-    })();
+
+      // If all finished and nothing picked yet (e.g. only VidHindi succeeded or all blocked CORS)
+      if (finishedCount === probeOrder.length && !pickedFastest) {
+        const fallbackTarget =
+          okList.sort((a, b) => a.ms - b.ms)[0]?.name ||
+          current.find((x) => x.name !== 'VidHindi' && !deadNow.includes(x.name))?.name ||
+          current[0]?.name ||
+          '';
+
+        if (!fallbackTarget) {
+          setPhase('failed');
+        } else {
+          pickedFastest = true;
+          setActiveName(fallbackTarget);
+          setPhase('loading');
+        }
+      }
+    });
 
     return () => {
       cancelled = true;
@@ -299,19 +374,17 @@ export default function Player({ item, servers = [] }) {
     if (!currentUrl || !activeName) return;
     if (loadedRef.current) return;
 
+    iframeStartRef.current = typeof performance !== 'undefined' ? performance.now() : Date.now();
     setPhase((p) => (p === 'checking' ? p : 'loading'));
 
     timerRef.current = setTimeout(() => {
       if (loadedRef.current) return;
 
       markDead(activeName);
-      setProbe((p) => ({ ...p, [activeName]: 'fail' }));
+      setProbe((p) => ({ ...p, [activeName]: { status: 'fail', ms: 99999 } }));
 
-      const curIdx = listRef.current.findIndex((s) => s.name === activeName);
       const deadNow = readDead();
-      const next = listRef.current
-        .slice(curIdx + 1)
-        .find((s) => s.name !== activeName && !deadNow.includes(s.name));
+      const next = orderedRef.current.find((s) => s.name !== activeName && !deadNow.includes(s.name));
 
       if (next && autoRef.current < MAX_AUTO) {
         autoRef.current += 1;
@@ -328,8 +401,10 @@ export default function Player({ item, servers = [] }) {
   const handleLoaded = () => {
     clearTimeout(timerRef.current);
     loadedRef.current = true;
-    markAlive(activeName);
-    setProbe((p) => ({ ...p, [activeName]: 'ok' }));
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const loadMs = Math.max(50, Math.round(now - (iframeStartRef.current || now)));
+    markAlive(activeName, loadMs);
+    setProbe((p) => ({ ...p, [activeName]: { status: 'ok', ms: p[activeName]?.ms || loadMs } }));
     setPhase('ok');
   };
 
@@ -452,7 +527,7 @@ export default function Player({ item, servers = [] }) {
               }}
             >
               {phase === 'checking'
-                ? 'Checking servers (VidHindi priority)…'
+                ? 'Finding fastest server…'
                 : `Loading ${active?.name}… (${autoTries}/${MAX_AUTO})`}
             </div>
           )}
@@ -486,9 +561,10 @@ export default function Player({ item, servers = [] }) {
 
         <div className="player-toolbar">
           <div className="server-group">
-            <span className="server-label">Servers:</span>
+            <span className="server-label">Fastest Servers:</span>
             {ordered.map((s) => {
-              const st = probe[s.name];
+              const p = probe[s.name];
+              const st = p?.status;
               const bad = st === 'fail' || (st !== 'ok' && deadList.includes(s.name));
               const good = st === 'ok';
               const isActive = s.name === activeName;
@@ -508,10 +584,10 @@ export default function Player({ item, servers = [] }) {
                   className={`srv-btn ${isActive ? 'on' : ''}`}
                   onClick={() => pickServer(s.name)}
                   style={style}
-                  title={bad ? 'Not responding' : s.hint}
+                  title={bad ? 'Not responding' : `${s.hint}${good && p.ms < 9000 ? ` (${p.ms}ms)` : ''}`}
                 >
                   <span>{s.name}</span>
-                  <span className="srv-hint">{s.hint}</span>
+                  <span className="srv-hint">{good && p.ms < 9000 ? `${p.ms}ms` : s.hint}</span>
                 </button>
               );
             })}
@@ -570,7 +646,7 @@ export default function Player({ item, servers = [] }) {
 
         <p className="player-tip">
           {item.type === 'tv' ? `Currently watching Season ${season}, Episode ${ep}. ` : ''}
-          VidHindi plays first automatically when available. Scroll along the sides or use Details/Reviews buttons above.
+          Fastest responding server starts automatically and servers reorder dynamically by speed.
         </p>
 
         {item.type === 'tv' && (
