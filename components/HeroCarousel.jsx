@@ -23,9 +23,7 @@ export default function HeroCarousel({ items = [] }) {
   useEffect(() => {
     const sync = () => {
       const map = {};
-      items.forEach((m) => {
-        map[m.id] = isInWatchlist(m.id);
-      });
+      items.forEach((m) => { map[m.id] = isInWatchlist(m.id); });
       setSavedIds(map);
     };
     sync();
@@ -34,9 +32,7 @@ export default function HeroCarousel({ items = [] }) {
 
   useEffect(() => {
     if (items.length <= 1 || paused || trailerKey) return;
-    const t = setInterval(() => {
-      setIdx((prev) => (prev + 1) % items.length);
-    }, 6500);
+    const t = setInterval(() => setIdx((prev) => (prev + 1) % items.length), 6500);
     return () => clearInterval(t);
   }, [items.length, paused, trailerKey]);
 
@@ -44,10 +40,7 @@ export default function HeroCarousel({ items = [] }) {
     return (
       <div className="empty-box" style={{ marginBottom: 28 }}>
         <h2>Welcome to MyFlix</h2>
-        <p>
-          Your catalog is currently empty. Add your <code>TMDB_API_KEY</code> secret in GitHub and run the{' '}
-          <strong>Auto Update Catalog</strong> workflow to automatically populate trending movies &amp; TV shows!
-        </p>
+        <p>Run the Auto Update Catalog workflow to automatically populate trending movies &amp; TV shows!</p>
         <Link href="/browse/" className="btn btn-primary">Explore Catalog</Link>
       </div>
     );
@@ -56,6 +49,12 @@ export default function HeroCarousel({ items = [] }) {
   const m = items[idx] || items[0];
   const href = m.type === 'tv' ? `/tv/${m.slug}/` : `/movie/${m.slug}/`;
   const isSaved = !!savedIds[m.id];
+
+  const openInfo = () => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('myflix:preview', { detail: m }));
+    }
+  };
 
   return (
     <>
@@ -98,22 +97,18 @@ export default function HeroCarousel({ items = [] }) {
             </Link>
 
             {m.trailer && (
-              <button
-                type="button"
-                className="btn btn-glass"
-                onClick={() => setTrailerKey(m.trailer)}
-              >
+              <button type="button" className="btn btn-glass" onClick={() => setTrailerKey(m.trailer)}>
                 <FilmIcon size={16} /> Trailer
               </button>
             )}
 
-            <button
-              type="button"
-              className="btn btn-glass"
-              onClick={() => toggleWatchlist(m)}
-            >
+            <button type="button" className="btn btn-glass" onClick={openInfo}>
+              More Info
+            </button>
+
+            <button type="button" className="btn btn-glass" onClick={() => toggleWatchlist(m)}>
               {isSaved ? <CheckIcon size={16} /> : <PlusIcon size={16} />}
-              {isSaved ? 'In Watchlist' : 'Watchlist'}
+              {isSaved ? 'Saved' : 'Watchlist'}
             </button>
           </div>
         </div>
