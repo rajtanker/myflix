@@ -4,12 +4,14 @@ import CarouselRow from '@/components/CarouselRow';
 import ContinueWatching from '@/components/ContinueWatching';
 import PersonalizedSection from '@/components/PersonalizedSection';
 import MoodPicker from '@/components/MoodPicker';
+import SpotlightSlider from '@/components/SpotlightSlider';
 import Card from '@/components/Card';
 import SafeImage from '@/components/SafeImage';
-import { GenreIcon, PlayIcon, StarIcon, CalendarIcon } from '@/components/Icons';
+import { GenreIcon, CalendarIcon } from '@/components/Icons';
 import { all, trending, newest, topRated, upcoming, anime, news, byGenre, byType } from '@/lib/data';
 import { GENRES, LANGS } from '@/lib/constants';
 import { COLLECTIONS } from '@/lib/collections';
+
 export default function HomePage() {
   const items = all();
   const trendList = trending(15);
@@ -27,8 +29,18 @@ export default function HomePage() {
   const indian = items.filter((m) => ['hi', 'bn', 'ta', 'te', 'ml', 'kn'].includes(m.lang)).slice(0, 15);
   const newsItems = news(4);
 
-  const spotMovie = topRated(3, 'movie')[0];
-  const spotSeries = topRated(3, 'tv')[0];
+  // Pick 8 world-best iconic popular movies & 8 series for auto-rotating dual spotlight
+  const spotMovies = items
+    .filter((m) => m.type === 'movie' && m.backdrop && (m.rating || 0) >= 7.5 && (m.voteCount || 0) >= 800)
+    .sort((a, b) => (b.rating || 0) * Math.log10(b.voteCount || 10) - (a.rating || 0) * Math.log10(a.voteCount || 10))
+    .slice(0, 8);
+  const finalSpotMovies = spotMovies.length >= 3 ? spotMovies : topRated(8, 'movie');
+
+  const spotSeries = items
+    .filter((m) => m.type === 'tv' && m.backdrop && (m.rating || 0) >= 7.6 && (m.voteCount || 0) >= 200)
+    .sort((a, b) => (b.rating || 0) * Math.log10(b.voteCount || 10) - (a.rating || 0) * Math.log10(a.voteCount || 10))
+    .slice(0, 8);
+  const finalSpotSeries = spotSeries.length >= 3 ? spotSeries : topRated(8, 'tv');
 
   return (
     <>
@@ -50,7 +62,18 @@ export default function HomePage() {
       </div>
 
       <ContinueWatching />
-<section className="growth-strip">
+
+      {/* Top 10 Trending BEFORE Picked For You */}
+      <CarouselRow
+        title="Top 10 Trending This Week"
+        items={top10}
+        viewAllHref="/browse/?sort=popular"
+        ranked
+      />
+
+      <PersonalizedSection />
+
+      <section className="growth-strip">
         <div className="sec-head" style={{ marginTop: 14 }}>
           <h2 className="sec-title"><span className="sec-bar" />Top Curated Lists &amp; Quiz</h2>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -66,16 +89,8 @@ export default function HomePage() {
           ))}
         </div>
       </section>
-      <PersonalizedSection />
 
       <MoodPicker />
-
-      <CarouselRow
-        title="Top 10 Trending This Week"
-        items={top10}
-        viewAllHref="/browse/?sort=popular"
-        ranked
-      />
 
       {latestReleases.length > 0 && (
         <section>
@@ -89,42 +104,8 @@ export default function HomePage() {
         </section>
       )}
 
-      {(spotMovie || spotSeries) && (
-        <section className="spotlight-grid">
-          {spotMovie && (
-            <Link href={`/movie/${spotMovie.slug}/`} className="spotlight-card">
-              <SafeImage src={spotMovie.backdrop || spotMovie.poster} fallback="/nobackdrop.svg" alt={spotMovie.title} className="spotlight-bg" />
-              <div className="spotlight-ov" />
-              <div className="spotlight-info">
-                <span className="pill pill-acc">FEATURED FILM</span>
-                <h3>{spotMovie.title}</h3>
-                <p>{spotMovie.overview}</p>
-                <div className="spotlight-meta">
-                  <span><StarIcon size={12} /> {Number(spotMovie.rating).toFixed(1)}</span>
-                  <span>{spotMovie.year}</span>
-                  <span className="spotlight-cta"><PlayIcon size={13} /> Watch Now</span>
-                </div>
-              </div>
-            </Link>
-          )}
-          {spotSeries && (
-            <Link href={`/tv/${spotSeries.slug}/`} className="spotlight-card">
-              <SafeImage src={spotSeries.backdrop || spotSeries.poster} fallback="/nobackdrop.svg" alt={spotSeries.title} className="spotlight-bg" />
-              <div className="spotlight-ov" />
-              <div className="spotlight-info">
-                <span className="pill pill-gold">BINGE-WORTHY SERIES</span>
-                <h3>{spotSeries.title}</h3>
-                <p>{spotSeries.overview}</p>
-                <div className="spotlight-meta">
-                  <span><StarIcon size={12} /> {Number(spotSeries.rating).toFixed(1)}</span>
-                  <span>{spotSeries.year}</span>
-                  <span className="spotlight-cta"><PlayIcon size={13} /> Stream Episodes</span>
-                </div>
-              </div>
-            </Link>
-          )}
-        </section>
-      )}
+      {/* Auto-Rotating Dual Spotlight (8 World-Best Movies & 8 Series) */}
+      <SpotlightSlider movies={finalSpotMovies} series={finalSpotSeries} />
 
       <CarouselRow title="Popular TV Series" items={series} viewAllHref="/tv-shows/" />
       <CarouselRow title="Anime Universe" items={animeList} viewAllHref="/anime/" />
@@ -152,7 +133,6 @@ export default function HomePage() {
       <CarouselRow title="K-Drama & Asian Cinema" items={asian} viewAllHref="/language/korean/" />
       <CarouselRow title="Indian & South Asian Hits" items={indian} viewAllHref="/language/hindi/" />
 
-      {/* Subtle Bottom News & Clips Strip */}
       {newsItems.length > 0 && (
         <section className="subtle-news-sec">
           <div className="sec-head">
