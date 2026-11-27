@@ -2736,3 +2736,10 @@ main.main-container {
   font-size: 13.5px;
 }
 }
+.player-shell.cinema-stage:not(.theater) {
+  max-width: 980px;
+  margin: 0 auto;
+}
+.player-shell.cinema-stage:not(.theater) .player-frame-wrap {
+  max-height: 64vh;
+}
