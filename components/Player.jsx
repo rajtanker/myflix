@@ -97,7 +97,6 @@ export default function Player({ item, servers = [] }) {
     return [{ s: 1, eps: 12 }];
   }, [item]);
 
-  // Put VidHindi & SERVERS first, then any extra prop servers without duplicates
   const list = useMemo(() => {
     const base = SERVERS.map((s) => ({
       name: s.name,
@@ -139,11 +138,6 @@ export default function Player({ item, servers = [] }) {
   const [showTrailer, setShowTrailer] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  // Smart Scroll Passthrough & Fullscreen Lock
-  const [engaged, setEngaged] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isTouch, setIsTouch] = useState(false);
-
   const timerRef = useRef(null);
   const autoRef = useRef(0);
   const runRef = useRef(0);
@@ -151,7 +145,6 @@ export default function Player({ item, servers = [] }) {
 
   const active = list.find((s) => s.name === activeName) || null;
 
-  /* Working first (VidHindi stays #1 if working), untested middle, failed last; hide VidHindi completely if dead */
   const ordered = useMemo(() => {
     const score = (n) => {
       const st = probe[n];
@@ -193,10 +186,9 @@ export default function Player({ item, servers = [] }) {
 
   useEffect(() => {
     setDeadList(readDead());
-    if (typeof window !== 'undefined') {
-      setIsTouch(window.matchMedia?.('(pointer: coarse)')?.matches || false);
+    if (item.type === 'tv' && typeof window !== 'undefined') {
       const m = window.location.hash.match(/^#s(\d+)e(\d+)$/i);
-      if (item.type === 'tv' && m) {
+      if (m) {
         const sNum = Number(m[1]);
         const eNum = Number(m[2]);
         const found = seasons.find((x) => x.s === sNum);
@@ -213,14 +205,7 @@ export default function Player({ item, servers = [] }) {
   useEffect(() => {
     const onFs = () => {
       const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
-      const activeFs = Boolean(fsEl);
-      setIsFullscreen(activeFs);
-      if (activeFs) {
-        setEngaged(true);
-        document.body.style.overflow = 'hidden';
-      } else {
-        document.body.style.overflow = '';
-      }
+      document.body.style.overflow = fsEl ? 'hidden' : '';
     };
     document.addEventListener('fullscreenchange', onFs);
     document.addEventListener('webkitfullscreenchange', onFs);
@@ -249,7 +234,6 @@ export default function Player({ item, servers = [] }) {
   const pageEnd = Math.min(totalEps, (epPage + 1) * EP_PAGE_SIZE);
   const epNumbers = Array.from({ length: pageEnd - pageStart + 1 }, (_, i) => pageStart + i);
 
-  /* Parallel probe — auto-plays VidHindi immediately if working, otherwise skips it */
   useEffect(() => {
     runRef.current += 1;
     const run = runRef.current;
@@ -310,7 +294,6 @@ export default function Player({ item, servers = [] }) {
     return fill(active.tpl, item.tmdb, season, ep);
   }, [active, item.tmdb, season, ep]);
 
-  /* Fallback timer */
   useEffect(() => {
     clearTimeout(timerRef.current);
     if (!currentUrl || !activeName) return;
@@ -342,351 +325,4 @@ export default function Player({ item, servers = [] }) {
     return () => clearTimeout(timerRef.current);
   }, [currentUrl, activeName, markDead]);
 
-  const handleLoaded = () => {
-    clearTimeout(timerRef.current);
-    loadedRef.current = true;
-    markAlive(activeName);
-    setProbe((p) => ({ ...p, [activeName]: 'ok' }));
-    setPhase('ok');
-  };
-
-  const pickServer = (name) => {
-    autoRef.current = 0;
-    loadedRef.current = false;
-    setAutoTries(0);
-    setActiveName(name);
-    setEngaged(true);
-    setPhase('loading');
-  };
-
-  const nextSource = () => {
-    const curIdx = ordered.findIndex((s) => s.name === activeName);
-    const next = ordered.slice(curIdx + 1).find((s) => s.name !== activeName);
-    if (next) pickServer(next.name);
-    else showToast('Last server — pick another below');
-  };
-
-  const retryAll = () => {
-    writeDead([]);
-    setDeadList([]);
-    autoRef.current = 0;
-    loadedRef.current = false;
-    setAutoTries(0);
-    setProbe({});
-    const first = ordered[0]?.name || list[0]?.name;
-    if (first) {
-      setActiveName(first === activeName ? ordered[1]?.name || first : first);
-      setPhase('loading');
-    }
-  };
-
-  const selectSeason = (sNum) => {
-    setSeason(sNum);
-    setEp(1);
-    setEpPage(0);
-  };
-
-  const selectEpisode = (eNum) => {
-    setEp(eNum);
-    setEpPage(Math.floor((eNum - 1) / EP_PAGE_SIZE));
-    if (typeof window !== 'undefined') {
-      window.history.replaceState(null, '', `#s${season}e${eNum}`);
-    }
-  };
-
-  const goPrevEp = () => {
-    if (ep > 1) selectEpisode(ep - 1);
-    else {
-      const idx = seasons.findIndex((x) => x.s === season);
-      if (idx > 0) {
-        const prevS = seasons[idx - 1];
-        setSeason(prevS.s);
-        setEp(prevS.eps);
-        setEpPage(Math.floor((prevS.eps - 1) / EP_PAGE_SIZE));
-      }
-    }
-  };
-
-  const goNextEp = () => {
-    if (ep < totalEps) selectEpisode(ep + 1);
-    else {
-      const idx = seasons.findIndex((x) => x.s === season);
-      if (idx >= 0 && idx < seasons.length - 1) {
-        const nextS = seasons[idx + 1];
-        setSeason(nextS.s);
-        setEp(1);
-        setEpPage(0);
-      }
-    }
-  };
-
-  const handleShare = async () => {
-    const url = typeof window !== 'undefined' ? window.location.href : '';
-    try {
-      if (navigator.share) await navigator.share({ title: item.title, url });
-      else {
-        await navigator.clipboard.writeText(url);
-        showToast('Link copied to clipboard!');
-      }
-    } catch {}
-  };
-
-  const allowIframePointer = isTouch || engaged || isFullscreen;
-
-  return (
-    <>
-      {theater && <div className="theater-backdrop" onClick={() => setTheater(false)} />}
-
-      <div className={`player-shell ${theater ? 'theater' : ''}`}>
-        <div
-          className="player-frame-wrap"
-          style={{ position: 'relative' }}
-          onMouseLeave={() => {
-            if (!isFullscreen) setEngaged(false);
-          }}
-        >
-          {currentUrl && (
-            <iframe
-              key={currentUrl}
-              src={currentUrl}
-              style={{ pointerEvents: allowIframePointer ? 'auto' : 'none' }}
-              allowFullScreen
-              referrerPolicy="origin"
-              allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-              title={item.title}
-              onLoad={handleLoaded}
-            />
-          )}
-
-          {/* Auto Scroll-Passthrough Overlay on Desktop (Never blocks Fullscreen) */}
-          {!allowIframePointer && phase === 'ok' && (
-            <div
-              className="player-scroll-overlay"
-              onClick={() => setEngaged(true)}
-              title="Click to interact with video controls"
-            >
-              <span className="scroll-hint-pill">Click video for controls • Scroll freely</span>
-            </div>
-          )}
-
-          {(phase === 'checking' || phase === 'loading') && (
-            <div
-              style={{
-                position: 'absolute',
-                inset: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: 'rgba(0,0,0,.72)',
-                pointerEvents: 'none',
-                fontSize: 13,
-                letterSpacing: 0.3,
-                textAlign: 'center',
-                padding: 20,
-              }}
-            >
-              {phase === 'checking'
-                ? 'Checking servers (VidHindi priority)…'
-                : `Loading ${active?.name}… (${autoTries}/${MAX_AUTO})`}
-            </div>
-          )}
-
-          {phase === 'failed' && (
-            <div
-              style={{
-                position: 'absolute',
-                inset: 0,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 10,
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: 'rgba(0,0,0,.88)',
-                textAlign: 'center',
-                padding: 20,
-              }}
-            >
-              <strong style={{ fontSize: 15 }}>No working server</strong>
-              <span style={{ fontSize: 12, opacity: 0.72, maxWidth: 340 }}>
-                If the title has not been released yet, no source will work. Otherwise retry or pick another server below.
-              </span>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button type="button" className="srv-btn" onClick={retryAll}>Retry</button>
-                <button type="button" className="srv-btn" onClick={nextSource}>Next server</button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* All Servers & Tools Visible Right Below Player */}
-        <div className="player-toolbar">
-          <div className="server-group">
-            <span className="server-label">Servers:</span>
-            {ordered.map((s) => {
-              const st = probe[s.name];
-              const bad = st === 'fail' || (st !== 'ok' && deadList.includes(s.name));
-              const good = st === 'ok';
-              const isActive = s.name === activeName;
-
-              const style = isActive
-                ? undefined
-                : bad
-                ? { opacity: 0.34, filter: 'grayscale(1)', borderColor: '#3a3a44' }
-                : good
-                ? { borderColor: '#2f9e5f', color: '#8fe3b0' }
-                : undefined;
-
-              return (
-                <button
-                  key={s.name}
-                  type="button"
-                  className={`srv-btn ${isActive ? 'on' : ''}`}
-                  onClick={() => pickServer(s.name)}
-                  style={style}
-                  title={bad ? 'Not responding' : s.hint}
-                >
-                  <span>{s.name}</span>
-                  <span className="srv-hint">{s.hint}</span>
-                </button>
-              );
-            })}
-            <button type="button" className="srv-btn" onClick={nextSource}>
-              <ChevronRightIcon size={15} /> Next
-            </button>
-          </div>
-
-          <div className="tool-actions">
-            {item.type === 'tv' && (
-              <>
-                <button type="button" className="srv-btn" onClick={goPrevEp}>
-                  <ChevronLeftIcon size={15} /> Prev
-                </button>
-                <button type="button" className="srv-btn" onClick={goNextEp}>
-                  Next <ChevronRightIcon size={15} />
-                </button>
-              </>
-            )}
-
-            {item.trailer && (
-              <button type="button" className="srv-btn" onClick={() => setShowTrailer(true)}>
-                <FilmIcon size={15} /> Trailer
-              </button>
-            )}
-
-            <button
-              type="button"
-              className={`srv-btn ${theater ? 'on' : ''}`}
-              onClick={() => setTheater((v) => !v)}
-            >
-              <MoonIcon size={15} /> {theater ? 'Exit Theater' : 'Theater Mode'}
-            </button>
-
-            <button
-              type="button"
-              className={`srv-btn ${saved ? 'on' : ''}`}
-              onClick={() => toggleWatchlist(item)}
-            >
-              {saved ? <CheckIcon size={15} /> : <PlusIcon size={15} />}
-              {saved ? 'Saved' : 'Watchlist'}
-            </button>
-
-            <button type="button" className="srv-btn" onClick={handleShare}>
-              <ShareIcon size={15} /> Share
-            </button>
-          </div>
-        </div>
-
-        <p className="player-tip">
-          {item.type === 'tv' ? `Currently watching Season ${season}, Episode ${ep}. ` : ''}
-          VidHindi plays first automatically when available. If a stream buffers, switch servers above.
-        </p>
-
-        {item.type === 'tv' && (
-          <div className="ep-panel">
-            <div className="ep-header">
-              {seasons.length <= 6 ? (
-                <div className="season-pills">
-                  {seasons.map((sObj) => (
-                    <button
-                      key={sObj.s}
-                      type="button"
-                      className={`srv-btn ${sObj.s === season ? 'on' : ''}`}
-                      onClick={() => selectSeason(sObj.s)}
-                    >
-                      Season {sObj.s}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <select
-                  className="season-select"
-                  value={season}
-                  onChange={(e) => selectSeason(Number(e.target.value))}
-                  aria-label="Select season"
-                >
-                  {seasons.map((sObj) => (
-                    <option key={sObj.s} value={sObj.s}>
-                      Season {sObj.s} ({sObj.eps} Episodes)
-                    </option>
-                  ))}
-                </select>
-              )}
-
-              {totalPages > 1 && (
-                <div className="season-pills">
-                  {Array.from({ length: totalPages }, (_, pIdx) => {
-                    const st = pIdx * EP_PAGE_SIZE + 1;
-                    const en = Math.min(totalEps, (pIdx + 1) * EP_PAGE_SIZE);
-                    return (
-                      <button
-                        key={pIdx}
-                        type="button"
-                        className={`srv-btn ${pIdx === epPage ? 'on' : ''}`}
-                        onClick={() => setEpPage(pIdx)}
-                      >
-                        {st}–{en}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            <div className="ep-grid">
-              {epNumbers.map((num) => (
-                <button
-                  key={num}
-                  type="button"
-                  className={`ep-btn ${num === ep ? 'on' : ''}`}
-                  onClick={() => selectEpisode(num)}
-                >
-                  Ep {num}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {showTrailer && item.trailer && (
-        <div className="modal-overlay" onClick={() => setShowTrailer(false)}>
-          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-head">
-              <strong>{item.title} — Official Trailer</strong>
-              <button type="button" className="modal-close" onClick={() => setShowTrailer(false)}>
-                <CloseIcon />
-              </button>
-            </div>
-            <div className="modal-video">
-              <iframe
-                src={`https://www.youtube.com/embed/${item.trailer}?autoplay=1`}
-                allow="autoplay; encrypted-media; fullscreen"
-                allowFullScreen
-              />
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  );
-}
+  const handleLoade
