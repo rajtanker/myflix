@@ -166,7 +166,7 @@ await grab('/discover/movie', 'movie', { sort_by: 'vote_count.desc', 'primary_re
 await grab('/discover/tv', 'tv', { sort_by: 'vote_count.desc', page: '2' });
 
 const toEnrich = Array.from(map.values())
-  .filter((x) => !x.enriched || !Array.isArray(x.reviews) || !Array.isArray(x.clips))
+  .filter((x) => !x.enriched || !Array.isArray(x.reviews) || x.reviews.length === 0 || !Array.isArray(x.clips))
   .sort((a, b) => (a.trendingRank ?? 999999) - (b.trendingRank ?? 999999) || (b.popularity || 0) - (a.popularity || 0))
   .slice(0, 220);
 
@@ -216,11 +216,12 @@ async function enrichOne(m) {
 
   m.reviews = (d.reviews?.results || [])
     .filter((rv) => rv.content)
-    .slice(0, 3)
+    .sort((a, b) => (b.author_details?.rating || 0) - (a.author_details?.rating || 0))
+    .slice(0, 6)
     .map((rv) => ({
       author: rv.author || 'Critic',
       rating: rv.author_details?.rating || 0,
-      content: rv.content.replace(/\s+/g, ' ').slice(0, 420) + (rv.content.length > 420 ? '...' : ''),
+      content: rv.content.replace(/[*_#`>]/g, '').replace(/\s+/g, ' ').slice(0, 480) + (rv.content.length > 480 ? '...' : ''),
       createdAt: (rv.created_at || '').slice(0, 10),
     }));
 
