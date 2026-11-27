@@ -1,6 +1,8 @@
 'use client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import SafeImage from '@/components/SafeImage';
 import {
+  PlayIcon,
   PlusIcon,
   CheckIcon,
   MoonIcon,
@@ -9,6 +11,7 @@ import {
   CloseIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  StarIcon,
 } from '@/components/Icons';
 import {
   isInWatchlist,
@@ -41,6 +44,13 @@ const SERVERS = [
   { name: 'Astra', hint: 'Multi', m: 'https://player-4aq.pages.dev/embed/movie/{tmdb}?autoPlay=true', t: 'https://player-4aq.pages.dev/embed/tv/{tmdb}/{s}/{e}?autoPlay=true' },
 ];
 
+const REACTIONS = [
+  { id: 'fire', emoji: '🔥', label: 'Must Watch' },
+  { id: 'mind', emoji: '🤯', label: 'Mind-Blown' },
+  { id: 'love', emoji: '❤️', label: 'Loved It' },
+  { id: 'fun', emoji: '🍿', label: 'Fun' },
+];
+
 function readDead() {
   if (typeof window === 'undefined') return [];
   try {
@@ -54,9 +64,7 @@ function writeDead(list) {
   if (typeof window === 'undefined') return;
   try {
     sessionStorage.setItem(DEAD_KEY, JSON.stringify(list.slice(-40)));
-  } catch {
-    /* ignore */
-  }
+  } catch {}
 }
 
 function preflight(url) {
@@ -109,9 +117,11 @@ export default function Player({ item, servers = [] }) {
         t: s.t || s.tpl,
       }));
 
-    const base = SERVERS.map((s) => ({ name: s.name, hint: s.hint, tpl: item.type === 'tv' ? s.t : s.m })).filter(
-      (s) => Boolean(s.tpl)
-    );
+    const base = SERVERS.map((s) => ({
+      name: s.name,
+      hint: s.hint,
+      tpl: item.type === 'tv' ? s.t : s.m,
+    })).filter((s) => Boolean(s.tpl));
 
     const merged = [...extra.map((e) => ({ ...e, tpl: item.type === 'tv' ? e.t : e.m })), ...base];
     const seen = new Set();
@@ -126,9 +136,12 @@ export default function Player({ item, servers = [] }) {
   const listRef = useRef(list);
   listRef.current = list;
 
+  const [started, setStarted] = useState(false);
+  const [scrollShield, setScrollShield] = useState(false);
   const [activeName, setActiveName] = useState('');
   const [phase, setPhase] = useState('checking');
   const [probe, setProbe] = useState({});
+  const [deadList, setDeadList] = useState([]);
   const [autoTries, setAutoTries] = useState(0);
   const [season, setSeason] = useState(seasons[0]?.s || 1);
   const [ep, setEp] = useState(1);
@@ -136,6 +149,7 @@ export default function Player({ item, servers = [] }) {
   const [theater, setTheater] = useState(false);
   const [showTrailer, setShowTrailer] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [reaction, setReaction] = useState('');
 
   const timerRef = useRef(null);
   const autoRef = useRef(0);
@@ -144,7 +158,6 @@ export default function Player({ item, servers = [] }) {
 
   const active = list.find((s) => s.name === activeName) || null;
 
-  /* working first, untested middle, failed last — order within a group is preserved */
   const ordered = useMemo(() => {
     const score = (n) => {
       const st = probe[n];
@@ -158,16 +171,25 @@ export default function Player({ item, servers = [] }) {
   const markDead = useCallback((name) => {
     if (!name) return;
     const d = readDead();
-    if (!d.includes(name)) writeDead([...d, name]);
+    if (!d.includes(name)) {
+      const next = [...d, name];
+      writeDead(next);
+      setDeadList(next);
+    }
   }, []);
 
   const markAlive = useCallback((name) => {
     if (!name) return;
     const d = readDead();
-    if (d.includes(name)) writeDead(d.filter((x) => x !== name));
+    if (d.includes(name)) {
+      const next = d.filter((x) => x !== name);
+      writeDead(next);
+      setDeadList(next);
+    }
   }, []);
 
   useEffect(() => {
+    setDeadList(readDead());
     if (item.type === 'tv' && typeof window !== 'undefined') {
       const m = window.location.hash.match(/^#s(\d+)e(\d+)$/i);
       if (m) {
@@ -179,6 +201,7 @@ export default function Player({ item, servers = [] }) {
           const safeEp = Math.min(Math.max(1, eNum), found.eps);
           setEp(safeEp);
           setEpPage(Math.floor((safeEp - 1) / EP_PAGE_SIZE));
+          setStarted(true);
         }
       }
     }
@@ -186,6 +209,9 @@ export default function Player({ item, servers = [] }) {
 
   useEffect(() => {
     setSaved(isInWatchlist(item.id));
+    if (typeof window !== 'undefined') {
+      setReaction(window.localStorage.getItem(`myflix_react_${item.id}`) || '');
+    }
     return subscribeStorage(() => setSaved(isInWatchlist(item.id)));
   }, [item.id]);
 
@@ -195,6 +221,22 @@ export default function Player({ item, servers = [] }) {
     else saveToHistory(item);
   }, [item, season, ep]);
 
+  // Keyboard shortcuts: T = Theater, S = Scroll Unlock
+  useEffect(() => {
+    const onKey = (e) => {
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return;
+      const k = e.key.toLowerCase();
+      if (k === 't') setTheater((v) => !v);
+      if (k === 's' && started) setScrollShield((v) => !v);
+      if (e.key === 'Escape') {
+        setTheater(false);
+        setShowTrailer(false);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [started]);
+
   const activeSeasonObj = seasons.find((x) => x.s === season) || seasons[0] || { s: 1, eps: 1 };
   const totalEps = activeSeasonObj.eps || 1;
   const totalPages = Math.ceil(totalEps / EP_PAGE_SIZE);
@@ -202,7 +244,7 @@ export default function Player({ item, servers = [] }) {
   const pageEnd = Math.min(totalEps, (epPage + 1) * EP_PAGE_SIZE);
   const epNumbers = Array.from({ length: pageEnd - pageStart + 1 }, (_, i) => pageStart + i);
 
-  /* parallel probe, once per title/episode */
+  /* Parallel background probe (runs smoothly even while Curtain is shown!) */
   useEffect(() => {
     runRef.current += 1;
     const run = runRef.current;
@@ -218,7 +260,10 @@ export default function Player({ item, servers = [] }) {
 
     (async () => {
       const results = await Promise.all(
-        current.map(async (s) => ({ name: s.name, ok: await preflight(fill(s.tpl, item.tmdb, season, ep)) }))
+        current.map(async (s) => ({
+          name: s.name,
+          ok: await preflight(fill(s.tpl, item.tmdb, season, ep)),
+        }))
       );
       if (cancelled || run !== runRef.current) return;
 
@@ -252,10 +297,10 @@ export default function Player({ item, servers = [] }) {
     return fill(active.tpl, item.tmdb, season, ep);
   }, [active, item.tmdb, season, ep]);
 
-  /* fallback timer — never fires once the iframe has loaded */
+  /* Fallback timer — only starts after user clicks Play (started === true) */
   useEffect(() => {
     clearTimeout(timerRef.current);
-    if (!currentUrl || !activeName) return;
+    if (!started || !currentUrl || !activeName) return;
     if (loadedRef.current) return;
 
     setPhase((p) => (p === 'checking' ? p : 'loading'));
@@ -282,7 +327,7 @@ export default function Player({ item, servers = [] }) {
     }, LOAD_TIMEOUT);
 
     return () => clearTimeout(timerRef.current);
-  }, [currentUrl, activeName, markDead]);
+  }, [started, currentUrl, activeName, markDead]);
 
   const handleLoaded = () => {
     clearTimeout(timerRef.current);
@@ -292,11 +337,22 @@ export default function Player({ item, servers = [] }) {
     setPhase('ok');
   };
 
+  const startPlayback = () => {
+    setStarted(true);
+    setScrollShield(false);
+    if (!activeName && ordered[0]?.name) {
+      setActiveName(ordered[0].name);
+      setPhase('loading');
+    }
+  };
+
   const pickServer = (name) => {
     autoRef.current = 0;
     loadedRef.current = false;
     setAutoTries(0);
     setActiveName(name);
+    setStarted(true);
+    setScrollShield(false);
     setPhase('loading');
   };
 
@@ -304,15 +360,17 @@ export default function Player({ item, servers = [] }) {
     const curIdx = ordered.findIndex((s) => s.name === activeName);
     const next = ordered.slice(curIdx + 1).find((s) => s.name !== activeName);
     if (next) pickServer(next.name);
-    else showToast('Last server — pick one from the list above');
+    else showToast('Last server — pick one from the sidebar');
   };
 
   const retryAll = () => {
     writeDead([]);
+    setDeadList([]);
     autoRef.current = 0;
     loadedRef.current = false;
     setAutoTries(0);
     setProbe({});
+    setStarted(true);
     const first = ordered[0]?.name;
     if (first) {
       setActiveName(first === activeName ? ordered[1]?.name || first : first);
@@ -324,42 +382,60 @@ export default function Player({ item, servers = [] }) {
     setSeason(sNum);
     setEp(1);
     setEpPage(0);
+    setStarted(true);
+    setScrollShield(false);
   };
 
   const selectEpisode = (eNum) => {
     setEp(eNum);
     setEpPage(Math.floor((eNum - 1) / EP_PAGE_SIZE));
+    setStarted(true);
+    setScrollShield(false);
     if (typeof window !== 'undefined') {
       window.history.replaceState(null, '', `#s${season}e${eNum}`);
     }
   };
 
   const goPrevEp = () => {
-    if (ep > 1) {
-      selectEpisode(ep - 1);
-    } else {
+    if (ep > 1) selectEpisode(ep - 1);
+    else {
       const idx = seasons.findIndex((x) => x.s === season);
       if (idx > 0) {
         const prevS = seasons[idx - 1];
         setSeason(prevS.s);
         setEp(prevS.eps);
         setEpPage(Math.floor((prevS.eps - 1) / EP_PAGE_SIZE));
+        setStarted(true);
       }
     }
   };
 
   const goNextEp = () => {
-    if (ep < totalEps) {
-      selectEpisode(ep + 1);
-    } else {
+    if (ep < totalEps) selectEpisode(ep + 1);
+    else {
       const idx = seasons.findIndex((x) => x.s === season);
       if (idx >= 0 && idx < seasons.length - 1) {
         const nextS = seasons[idx + 1];
         setSeason(nextS.s);
         setEp(1);
         setEpPage(0);
+        setStarted(true);
       }
     }
+  };
+
+  const handleReact = (id) => {
+    const next = reaction === id ? '' : id;
+    setReaction(next);
+    if (typeof window !== 'undefined') {
+      if (next) window.localStorage.setItem(`myflix_react_${item.id}`, next);
+      else window.localStorage.removeItem(`myflix_react_${item.id}`);
+    }
+    if (next) showToast('Thanks for rating this title!');
+  };
+
+  const jumpTo = (selector) => {
+    document.querySelector(selector)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   const handleShare = async () => {
@@ -370,229 +446,320 @@ export default function Player({ item, servers = [] }) {
         await navigator.clipboard.writeText(url);
         showToast('Link copied to clipboard!');
       }
-    } catch {
-      /* ignore */
-    }
+    } catch {}
   };
-
-  const deadList = typeof window !== 'undefined' ? readDead() : [];
 
   return (
     <>
       {theater && <div className="theater-backdrop" onClick={() => setTheater(false)} />}
 
       <div className={`player-shell ${theater ? 'theater' : ''}`}>
-        <div className="player-frame-wrap" style={{ position: 'relative' }}>
-          {currentUrl ? (
-            <iframe
-              key={currentUrl}
-              src={currentUrl}
-              allowFullScreen
-              referrerPolicy="origin"
-              allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-              title={item.title}
-              onLoad={handleLoaded}
-            />
-          ) : null}
-
-          {(phase === 'checking' || phase === 'loading') && (
-            <div
-              style={{
-                position: 'absolute',
-                inset: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: 'rgba(0,0,0,.72)',
-                pointerEvents: 'none',
-                fontSize: 13,
-                letterSpacing: 0.3,
-                textAlign: 'center',
-                padding: 20,
-              }}
-            >
-              {phase === 'checking'
-                ? 'Checking servers…'
-                : `Loading ${active?.name}… (${autoTries}/${MAX_AUTO})`}
-            </div>
-          )}
-
-          {phase === 'failed' && (
-            <div
-              style={{
-                position: 'absolute',
-                inset: 0,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 10,
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: 'rgba(0,0,0,.88)',
-                textAlign: 'center',
-                padding: 20,
-              }}
-            >
-              <strong style={{ fontSize: 15 }}>No working server</strong>
-              <span style={{ fontSize: 12, opacity: 0.72, maxWidth: 340 }}>
-                If the title has not been released yet, no source will work. Otherwise retry or pick another server below.
-              </span>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button type="button" className="srv-btn" onClick={retryAll}>
-                  Retry
-                </button>
-                <button type="button" className="srv-btn" onClick={nextSource}>
-                  Next server
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="player-toolbar">
-          <div className="server-group">
-            <span className="server-label">Servers:</span>
-            {ordered.map((s) => {
-              const st = probe[s.name];
-              const bad = st === 'fail' || (st !== 'ok' && deadList.includes(s.name));
-              const good = st === 'ok';
-              const isActive = s.name === activeName;
-
-              const style = bad
-                ? { opacity: 0.32, filter: 'grayscale(1)', borderColor: '#3a3a44' }
-                : good
-                  ? { borderColor: '#2f9e5f', color: '#8fe3b0' }
-                  : undefined;
-
-              return (
-                <button
-                  key={s.name}
-                  type="button"
-                  className={`srv-btn ${isActive ? 'on' : ''}`}
-                  onClick={() => pickServer(s.name)}
-                  style={style}
-                  title={bad ? 'Not responding' : s.hint}
-                >
-                  <span>{s.name}</span>
-                  <span className="srv-hint">{s.hint}</span>
-                </button>
-              );
-            })}
-            <button type="button" className="srv-btn" onClick={nextSource}>
-              <ChevronRightIcon size={15} /> Next
-            </button>
-          </div>
-
-          <div className="tool-actions">
-            {item.type === 'tv' && (
-              <>
-                <button type="button" className="srv-btn" onClick={goPrevEp}>
-                  <ChevronLeftIcon size={15} /> Prev
-                </button>
-                <button type="button" className="srv-btn" onClick={goNextEp}>
-                  Next <ChevronRightIcon size={15} />
-                </button>
-              </>
-            )}
-
-            {item.trailer && (
-              <button type="button" className="srv-btn" onClick={() => setShowTrailer(true)}>
-                <FilmIcon size={15} /> Trailer
-              </button>
-            )}
-
-            <button
-              type="button"
-              className={`srv-btn ${theater ? 'on' : ''}`}
-              onClick={() => setTheater((v) => !v)}
-            >
-              <MoonIcon size={15} /> {theater ? 'Exit Theater' : 'Theater Mode'}
-            </button>
-
-            <button
-              type="button"
-              className={`srv-btn ${saved ? 'on' : ''}`}
-              onClick={() => toggleWatchlist(item)}
-            >
-              {saved ? <CheckIcon size={15} /> : <PlusIcon size={15} />}
-              {saved ? 'Saved' : 'Watchlist'}
-            </button>
-
-            <button type="button" className="srv-btn" onClick={handleShare}>
-              <ShareIcon size={15} /> Share
-            </button>
-          </div>
-        </div>
-
-        <p className="player-tip">
-          {item.type === 'tv' ? `Currently watching Season ${season}, Episode ${ep}. ` : ''}
-          If the player fails to load or buffers, switch to another server above.
-        </p>
-
-        {item.type === 'tv' && (
-          <div className="ep-panel">
-            <div className="ep-header">
-              {seasons.length <= 6 ? (
-                <div className="season-pills">
-                  {seasons.map((sObj) => (
-                    <button
-                      key={sObj.s}
-                      type="button"
-                      className={`srv-btn ${sObj.s === season ? 'on' : ''}`}
-                      onClick={() => selectSeason(sObj.s)}
-                    >
-                      Season {sObj.s}
-                    </button>
-                  ))}
+        <div className={`cinema-grid ${theater ? 'theater-mode' : ''}`}>
+          {/* Left: Video Player Column */}
+          <div className="cinema-main">
+            <div className="player-frame-wrap" style={{ position: 'relative' }}>
+              {!started ? (
+                <div className="player-curtain" onClick={startPlayback} role="button" tabIndex={0}>
+                  <SafeImage
+                    src={item.backdrop || item.poster}
+                    fallback="/nobackdrop.svg"
+                    alt={item.title}
+                    className="player-curtain-bg"
+                    loading="eager"
+                  />
+                  <div className="player-curtain-ov">
+                    <div className="curtain-play-btn">
+                      <PlayIcon size={30} />
+                    </div>
+                    <strong className="curtain-title">
+                      {item.type === 'tv' ? `Watch ${item.title} — S${season} E${ep}` : `Watch ${item.title}`}
+                    </strong>
+                    <span className="curtain-sub">
+                      {phase === 'checking'
+                        ? 'Finding fastest server… Scroll page freely or click to play'
+                        : `Ready on ${active?.name || 'HD Server'} • Scroll freely or click to play`}
+                    </span>
+                  </div>
                 </div>
               ) : (
-                <select
-                  className="season-select"
-                  value={season}
-                  onChange={(e) => selectSeason(Number(e.target.value))}
-                  aria-label="Select season"
-                >
-                  {seasons.map((sObj) => (
-                    <option key={sObj.s} value={sObj.s}>
-                      Season {sObj.s} ({sObj.eps} Episodes)
-                    </option>
-                  ))}
-                </select>
-              )}
+                <>
+                  {currentUrl && (
+                    <iframe
+                      key={currentUrl}
+                      src={currentUrl}
+                      style={{ pointerEvents: scrollShield ? 'none' : 'auto' }}
+                      allowFullScreen
+                      referrerPolicy="origin"
+                      allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+                      title={item.title}
+                      onLoad={handleLoaded}
+                    />
+                  )}
 
-              {totalPages > 1 && (
-                <div className="season-pills">
-                  {Array.from({ length: totalPages }, (_, pIdx) => {
-                    const st = pIdx * EP_PAGE_SIZE + 1;
-                    const en = Math.min(totalEps, (pIdx + 1) * EP_PAGE_SIZE);
+                  {scrollShield && (
+                    <div className="scroll-shield" onClick={() => setScrollShield(false)}>
+                      <span className="pill pill-acc">
+                        Scroll Mode Active — Click video to resume controls
+                      </span>
+                    </div>
+                  )}
+
+                  {(phase === 'checking' || phase === 'loading') && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: 'rgba(0,0,0,.72)',
+                        pointerEvents: 'none',
+                        fontSize: 13,
+                        letterSpacing: 0.3,
+                        textAlign: 'center',
+                        padding: 20,
+                      }}
+                    >
+                      {phase === 'checking'
+                        ? 'Checking servers…'
+                        : `Loading ${active?.name}… (${autoTries}/${MAX_AUTO})`}
+                    </div>
+                  )}
+
+                  {phase === 'failed' && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 10,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: 'rgba(0,0,0,.88)',
+                        textAlign: 'center',
+                        padding: 20,
+                      }}
+                    >
+                      <strong style={{ fontSize: 15 }}>No working server</strong>
+                      <span style={{ fontSize: 12, opacity: 0.72, maxWidth: 340 }}>
+                        If the title has not been released yet, no source will work. Otherwise retry or pick another server.
+                      </span>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button type="button" className="srv-btn" onClick={retryAll}>
+                          Retry
+                        </button>
+                        <button type="button" className="srv-btn" onClick={nextSource}>
+                          Next server
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Action Toolbar */}
+            <div className="player-toolbar">
+              <div className="tool-actions">
+                {item.type === 'tv' && (
+                  <>
+                    <button type="button" className="srv-btn" onClick={goPrevEp}>
+                      <ChevronLeftIcon size={15} /> Prev
+                    </button>
+                    <button type="button" className="srv-btn" onClick={goNextEp}>
+                      Next <ChevronRightIcon size={15} />
+                    </button>
+                  </>
+                )}
+
+                {started && (
+                  <button
+                    type="button"
+                    className={`srv-btn ${scrollShield ? 'on' : ''}`}
+                    title="Enable mouse-wheel scroll over video (Shortcut: S)"
+                    onClick={() => setScrollShield((v) => !v)}
+                  >
+                    {scrollShield ? 'Resume Video Click' : 'Unlock Scroll (S)'}
+                  </button>
+                )}
+
+                {item.trailer && (
+                  <button type="button" className="srv-btn" onClick={() => setShowTrailer(true)}>
+                    <FilmIcon size={15} /> Trailer
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  className={`srv-btn ${theater ? 'on' : ''}`}
+                  title="Shortcut: T"
+                  onClick={() => setTheater((v) => !v)}
+                >
+                  <MoonIcon size={15} /> {theater ? 'Exit Theater' : 'Theater'}
+                </button>
+
+                <button
+                  type="button"
+                  className={`srv-btn ${saved ? 'on' : ''}`}
+                  onClick={() => toggleWatchlist(item)}
+                >
+                  {saved ? <CheckIcon size={15} /> : <PlusIcon size={15} />}
+                  {saved ? 'Saved' : 'Watchlist'}
+                </button>
+
+                <button type="button" className="srv-btn" onClick={handleShare}>
+                  <ShareIcon size={15} /> Share
+                </button>
+              </div>
+
+              <div className="quick-jump-row">
+                <button type="button" className="jump-pill" onClick={() => jumpTo('.detail-grid')}>Details ↓</button>
+                <button type="button" className="jump-pill" onClick={() => jumpTo('.reviews-sec')}>Reviews ↓</button>
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Pro Cinema Sidebar (Probed Servers + Episodes + Reactions) */}
+          {!theater && (
+            <aside className="cinema-sidebar">
+              <div className="cs-head">
+                <div>
+                  <span className="cs-badge">{item.type === 'tv' ? `S${season} • E${ep}` : 'AUTO-PROBE HD'}</span>
+                  <h2>{item.title}</h2>
+                </div>
+                {item.rating > 0 && (
+                  <span className="pill pill-gold">
+                    <StarIcon size={12} /> {Number(item.rating).toFixed(1)}
+                  </span>
+                )}
+              </div>
+
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <span className="cs-label" style={{ marginBottom: 0 }}>Servers ({ordered.length})</span>
+                  <button type="button" className="jump-pill" onClick={nextSource}>Next →</button>
+                </div>
+
+                <div className="srv-list-col" style={{ maxHeight: 240, overflowY: 'auto', paddingRight: 4 }}>
+                  {ordered.map((s) => {
+                    const st = probe[s.name];
+                    const bad = st === 'fail' || (st !== 'ok' && deadList.includes(s.name));
+                    const good = st === 'ok';
+                    const isActive = s.name === activeName;
+
+                    const style = isActive
+                      ? undefined
+                      : bad
+                      ? { opacity: 0.36, filter: 'grayscale(1)' }
+                      : good
+                      ? { borderColor: 'rgba(47, 158, 95, 0.7)' }
+                      : undefined;
+
                     return (
                       <button
-                        key={pIdx}
+                        key={s.name}
                         type="button"
-                        className={`srv-btn ${pIdx === epPage ? 'on' : ''}`}
-                        onClick={() => setEpPage(pIdx)}
+                        className={`srv-row-btn ${isActive ? 'on' : ''}`}
+                        onClick={() => pickServer(s.name)}
+                        style={style}
+                        title={bad ? 'Not responding' : s.hint}
                       >
-                        {st}–{en}
+                        <span
+                          className="srv-dot"
+                          style={!isActive && good ? { background: '#22c55e' } : !isActive && bad ? { background: '#ef4444' } : undefined}
+                        />
+                        <strong>{s.name}</strong>
+                        <small>{good ? `${s.hint} • OK` : bad ? 'Offline' : s.hint}</small>
                       </button>
                     );
                   })}
                 </div>
-              )}
-            </div>
+              </div>
 
-            <div className="ep-grid">
-              {epNumbers.map((num) => (
-                <button
-                  key={num}
-                  type="button"
-                  className={`ep-btn ${num === ep ? 'on' : ''}`}
-                  onClick={() => selectEpisode(num)}
-                >
-                  Ep {num}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+              {item.type === 'tv' && (
+                <div className="cs-eps-wrap">
+                  <div className="cs-ep-top">
+                    <span className="cs-label" style={{ marginBottom: 0 }}>Episodes</span>
+                    {seasons.length <= 4 ? (
+                      <div className="season-pills">
+                        {seasons.map((sObj) => (
+                          <button
+                            key={sObj.s}
+                            type="button"
+                            className={`srv-btn ${sObj.s === season ? 'on' : ''}`}
+                            style={{ padding: '4px 9px', fontSize: 11.5 }}
+                            onClick={() => selectSeason(sObj.s)}
+                          >
+                            S{sObj.s}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <select
+                        className="season-select"
+                        style={{ padding: '5px 10px', fontSize: 12 }}
+                        value={season}
+                        onChange={(e) => selectSeason(Number(e.target.value))}
+                      >
+                        {seasons.map((sObj) => (
+                          <option key={sObj.s} value={sObj.s}>Season {sObj.s} ({sObj.eps})</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+
+                  {totalPages > 1 && (
+                    <div className="season-pills" style={{ marginBottom: 8 }}>
+                      {Array.from({ length: totalPages }, (_, pIdx) => (
+                        <button
+                          key={pIdx}
+                          type="button"
+                          className={`srv-btn ${pIdx === epPage ? 'on' : ''}`}
+                          style={{ padding: '3px 8px', fontSize: 11 }}
+                          onClick={() => setEpPage(pIdx)}
+                        >
+                          {pIdx * EP_PAGE_SIZE + 1}–{Math.min(totalEps, (pIdx + 1) * EP_PAGE_SIZE)}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="ep-grid-side">
+                    {epNumbers.map((num) => (
+                      <button
+                        key={num}
+                        type="button"
+                        className={`ep-btn ${num === ep ? 'on' : ''}`}
+                        onClick={() => selectEpisode(num)}
+                      >
+                        Ep {num}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <div className="cs-label">Your Reaction:</div>
+                <div className="reaction-row">
+                  {REACTIONS.map((rx) => (
+                    <button
+                      key={rx.id}
+                      type="button"
+                      className={`react-btn ${reaction === rx.id ? 'on' : ''}`}
+                      title={rx.label}
+                      onClick={() => handleReact(rx.id)}
+                    >
+                      <span>{rx.emoji}</span>
+                      <small>{rx.label}</small>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </aside>
+          )}
+        </div>
       </div>
 
       {showTrailer && item.trailer && (
